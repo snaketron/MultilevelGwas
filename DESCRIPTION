@@ -1,12 +1,16 @@
-Package: MG
+Package: MouseGwas
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Simo",
+           family = "Kitanovski",
            role = c("aut", "cre"),
-           email = "first.last@example.com")
-Description: What the package does (one paragraph).
+           email = "simo.kitanovski@uni-due.de")
+Description: Tool for genome-wide association for studying multiple 
+    traits of inbred mice. Using Bayesian multi-level models and 
+    statistical learning techniques, MouseGwas extracts as much 
+    information from the genotype-phenotype data as possible, and 
+    summarizes the association strengths using intuitive metrics.
 License: GPL (>=3)
 Depends: 
     methods,
