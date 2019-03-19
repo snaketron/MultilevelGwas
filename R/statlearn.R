@@ -5,13 +5,12 @@
 # (phenotype), compute the classification accuracy of classifying
 # the genotype from the phenotype alone (and corresponding HDI).
 # The classification is computed using random forest.
-runStatLearn <- function(genphen.data,
+runStatLearn <- function(gt.data,
                          method,
-                         cv.fold,
                          cv.steps,
-                         ntree,
                          hdi.level,
-                         cores) {
+                         cores,
+                         dot.param) {
 
 
   # RF analysis
@@ -309,24 +308,24 @@ runStatLearn <- function(genphen.data,
   doParallel::registerDoParallel(cl)
   j <- NULL
   if(method == "rf") {
-    cas <- (foreach(j = 1:ncol(genphen.data$X),
+    cas <- (foreach(j = 1:ncol(gt.data$X),
                     .export = c("getHdi", "getKappa"),
                     .packages = c("ranger")) %dopar%
-              runRf(X = as.matrix(genphen.data$X[, j]),
-                    Y = genphen.data$Y,
-                    cv.fold = cv.fold,
+              runRf(X = as.matrix(gt.data$X[, j]),
+                    Y = gt.data$Y,
+                    cv.fold = dot.param$cv.fold,
                     cv.steps = cv.steps,
                     hdi.level = hdi.level,
-                    ntree = ntree,
+                    ntree = dot.param$ntree,
                     site = j))
   }
   else if(method == "svm") {
-    cas <- (foreach(j = 1:ncol(genphen.data$X),
+    cas <- (foreach(j = 1:ncol(gt.data$X),
                     .export = c("getHdi", "getKappa"),
                     .packages = c("e1071")) %dopar%
-              runSvm(X = as.matrix(genphen.data$X[, j]),
-                     Y = genphen.data$Y,
-                     cv.fold = cv.fold,
+              runSvm(X = as.matrix(gt.data$X[, j]),
+                     Y = gt.data$Y,
+                     cv.fold = dot.param$cv.fold,
                      cv.steps = cv.steps,
                      hdi.level = hdi.level,
                      site = j))
@@ -341,15 +340,6 @@ runStatLearn <- function(genphen.data,
 
   return (cas)
 }
-
-
-
-
-
-
-
-
-
 
 
 

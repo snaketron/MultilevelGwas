@@ -1,16 +1,18 @@
 # Function:
 # Parse input data and format it for stan and statistical learning
 getStanData <- function(genotype,
-                        phenotype,
-                        phenotype.type) {
+                        traits,
+                        trait.type,
+                        strains) {
 
 
 
   # Description:
-  # Get genotype-phenotype data
+  # Get genotype-traits data
   getFormattedGenphen <- function(genotype,
-                                  phenotype,
-                                  phenotype.type) {
+                                  traits,
+                                  trait.type,
+                                  strains) {
 
 
     # convert AAMultipleAlignment to matrix if needed
@@ -23,33 +25,34 @@ getStanData <- function(genotype,
     }
 
     # if vector genotype => matrix genotype
-    if(is.vector(phenotype)) {
-      phenotype <- matrix(data = phenotype, ncol = 1)
+    if(is.vector(traits)) {
+      traits <- matrix(data = traits, ncol = 1)
     }
 
-    phenotype <- data.frame(phenotype)
+    traits <- data.frame(traits)
 
 
     # TODO: check
-    if(sum(phenotype.type == "D") != 0) {
-      d <- which(phenotype.type == "D")
+    if(sum(trait.type == "D") != 0) {
+      d <- which(trait.type == "D")
       for(i in 1:length(d)) {
-        if(all(phenotype[, d] %in% c(1, 0)) == FALSE) {
+        if(all(traits[, d] %in% c(1, 0)) == FALSE) {
           # mapping 1st element to 1, 2nd to 0
-          u <- unique(phenotype[, d])
-          phenotype[phenotype[, d] == u[1], d] <- "1"
-          phenotype[phenotype[, d] == u[2], d] <- "0"
-          cat("Mapping dichotomous phenotype:", i,
+          u <- unique(traits[, d])
+          traits[traits[, d] == u[1], d] <- "1"
+          traits[traits[, d] == u[2], d] <- "0"
+          cat("Mapping dichotomous traits:", i,
               "(", u[1], "->1,", u[2], "->0) \n")
         }
-        phenotype[, d] <- as.factor(as.character(phenotype[, d]))
+        traits[, d] <- as.factor(as.character(traits[, d]))
       }
     }
 
     # return
     return (list(genotype = genotype,
-                 phenotype = phenotype,
-                 phenotype.type = phenotype.type))
+                 traits = traits,
+                 trait.type = trait.type,
+                 strains = strains))
   }
 
 
@@ -59,103 +62,78 @@ getStanData <- function(genotype,
 
 
     # Split SNP into pairs of genotypes
-    getSplitX <- function(x) {
-      ux <- unique(x)
-      ns <- length(ux)
-      nc <- max(c(choose(n = ns, k = 2), 1))
-      x.split <- matrix(data = 0, nrow = length(x), ncol = nc)
+    getX <- function(x) {
+      xs <- unique(x)
+      X <- numeric(length = length(x))
+      xs.dir <- c(1, -1)
 
-      if(ns == 1) {
-        x.split[, 1] <- 1
-        x.map <- data.frame(ref = ux[1], alt = NA,
-                            refN = sum(x == ux[1]),
-                            altN = 0,
-                            stringsAsFactors = FALSE)
+      # map genotypes to 1s and -1s
+      for(i in 1:length(xs)) {
+        X[x == xs[i]] <- xs.dir[i]
       }
-      else {
-        x.map <- c()
-        counter <- 1
-        for(i in 1:(ns-1)) {
-          for(j in (i+1):ns) {
-            x.split[x == ux[i], counter] <- 1
-            x.split[x == ux[j], counter] <- -1
-            counter <- counter + 1
-            x.map <- rbind(x.map, data.frame(ref = ux[i], alt = ux[j],
-                                             refN = sum(x == ux[i]),
-                                             altN = sum(x == ux[j]),
-                                             stringsAsFactors = FALSE))
-          }
-        }
-      }
+
+      xs <- c(xs, NA)
+
+      # xmap
+      xmap <- data.frame(ref = xs[1], alt = xs[2],
+                         refN = sum(X == 1),
+                         altN = sum(X == -1))
 
       # return
-      return(list(x.split = x.split,
-                  x.map = x.map))
+      return(list(X = X, xmap = xmap))
     }
-
 
     # X.data
     getXData <- function(x) {
-      return (x$x.split)
+      return (x$X)
     }
-
 
     # X.map
     getXMap <- function(x) {
-      return (x$x.map)
+      return (x$xmap)
     }
 
 
     # make huge matrix with predictors
     X <- f.data$genotype
-    colnames(X) <- 1:ncol(X)
-    x.data <- apply(X = X, MARGIN = 2, FUN = getSplitX)
-    for(i in 1:length(x.data)) {
-      x.data[[i]]$x.map$site <- i
+    X <- apply(X = X, MARGIN = 2, FUN = getX)
+    for(i in 1:length(X)) {
+      X[[i]]$xmap$site <- i
     }
-    X <- do.call(cbind, lapply(X = x.data, FUN = getXData))
-    x.map <- do.call(rbind, lapply(X = x.data, FUN = getXMap))
+    browser()
+    xmap <- do.call(rbind, lapply(X = X, FUN = getXMap))
+    X <- do.call(cbind, lapply(X = X, FUN = getXData))
 
 
-    # TODO: remove
-    # filtering
-    # filter.i <- which(x.map$refN > 1 & x.map$altN > 1)
-    # X <- X[, filter.i]
-    # if(length(X) == 0) {
-    #   stop("All SNPs have 1 element (Problem)")
-    # }
-    # if(is.vector(X) == T) {
-    #   X <- matrix(data = X, ncol = 1)
-    # }
-    # x.map <- x.map[filter.i, ]
-
-
-    if(sum(phenotype.type == "Q") != 0) {
-      Yq <- as.matrix(f.data$phenotype[, f.data$phenotype.type == "Q"])
+    if(sum(trait.type == "Q") != 0) {
+      Yq <- as.matrix(f.data$traits[, f.data$trait.type == "Q"])
     }
     else {
       Yq <- matrix(data = 0, ncol = 0, nrow = nrow(X))
     }
 
-    if(sum(phenotype.type == "D") != 0) {
-      Yd <- as.matrix(f.data$phenotype[, f.data$phenotype.type == "D"])
+    if(sum(trait.type == "D") != 0) {
+      Yd <- as.matrix(f.data$traits[, f.data$trait.type == "D"])
     }
     else {
       Yd <- matrix(data = 0, ncol = 0, nrow = nrow(X))
     }
 
+    K <- as.numeric(as.factor(strains))
     s <- list(X = X,
-              Y = f.data$phenotype,
+              Y = f.data$traits,
+              K = K,
               Yq = Yq,
               Yd = Yd,
               N = nrow(X),
-              Ns = ncol(f.data$genotype),
-              Nsk = ncol(X),
+              Ns = ncol(X),
+              Nk = length(unique(strains)),
               Ntq = ncol(Yq),
               Ntd = ncol(Yd),
-              xmap = x.map,
+              xmap = xmap,
+              strains = strains,
               genotype = f.data$genotype,
-              phenotype.type = f.data$phenotype.type)
+              trait.type = f.data$trait.type)
 
     return (s)
   }
@@ -163,8 +141,9 @@ getStanData <- function(genotype,
 
   # genphen data
   f.data <- getFormattedGenphen(genotype = genotype,
-                                phenotype = phenotype,
-                                phenotype.type = phenotype.type)
+                                traits = traits,
+                                trait.type = trait.type,
+                                strains = strains)
 
 
   # stan data
@@ -177,9 +156,7 @@ getStanData <- function(genotype,
 
 
 
-
-
-# Description:
+# Function:
 # Parse input data and format it for stan and statistical learning
 getPhyloData <- function(genotype) {
 
@@ -270,23 +247,77 @@ getPhyloData <- function(genotype) {
 
 
 # Function:
-# Is a genotype (SNP) bi-allelic?
-isBiallelic <- function(genotype) {
-
-  isBi <- function(x) {
-    return(length(unique(x)) <= 2)
+# Given model.name, fetch appropriate stan model
+getStanModel <- function(model.name, comparison.mode) {
+  # M0
+  if(model.name == "M0") {
+    if(comparison.mode == TRUE) {
+      model <- stanmodels$M0_loglik
+    }
+    else {
+      model <- stanmodels$M0
+    }
   }
 
-  is.bi <- apply(X = genotype, MARGIN = 2, FUN = isBi)
+  # M0c
+  if(model.name == "M0c") {
+    if(comparison.mode == TRUE) {
+      model <- stanmodels$M0c_loglik
+    }
+    else {
+      model <- stanmodels$M0c
+    }
+  }
 
-  return(all(is.bi == TRUE))
+  # M1
+  if(model.name == "M1") {
+    if(comparison.mode == TRUE) {
+      model <- stanmodels$M1_loglik
+    }
+    else {
+      model <- stanmodels$M1
+    }
+  }
+
+  # M1c
+  if(model.name == "M1c") {
+    if(comparison.mode == TRUE) {
+      model <- stanmodels$M1c_loglik
+    }
+    else {
+      model <- stanmodels$M1c
+    }
+  }
+
+  # M2
+  if(model.name == "M2") {
+    if(comparison.mode == TRUE) {
+      model <- stanmodels$M2_loglik
+    }
+    else {
+      model <- stanmodels$M2
+    }
+  }
+
+  # M2c
+  if(model.name == "M2c") {
+    if(comparison.mode == TRUE) {
+      model <- stanmodels$M2c_loglik
+    }
+    else {
+      model <- stanmodels$M2c
+    }
+  }
+
+  return (model)
 }
 
 
 
 
+
 # Function:
-# Check the ... parameters for the model comparison function
+# Check the (...)  parameters for the model comparison function
 checkDotParModelComparison <- function(...) {
 
   checkAdaptDelta <- function(adapt_delta) {
@@ -389,7 +420,7 @@ checkDotParModelComparison <- function(...) {
 
 
 # Function:
-# Check the ... parameters for the main function
+# Check the (...) parameters for the main function
 checkDotParRun <- function(...) {
 
   checkAdaptDelta <- function(adapt_delta) {
@@ -470,18 +501,30 @@ checkDotParRun <- function(...) {
     return (refresh)
   }
 
+  checkSampleFile <- function(with.sample.file) {
+    if(length(with.sample.file) != 1) {
+      stop("with.sample.file is a logical parameter.")
+    }
+
+    if(is.logical(with.sample.file) == FALSE) {
+      stop("with.sample.file is a logical parameter.")
+    }
+  }
+
   available.names <- c("adapt_delta",
                        "max_treedepth",
                        "ntree",
                        "cv.fold",
                        "refresh",
-                       "verbose")
+                       "verbose",
+                       "with.sample.file")
   default.values <- list(adapt_delta = 0.95,
                          max_treedepth = 10,
                          ntree = 1000,
                          cv.fold = 0.66,
                          refresh = 250,
-                         verbose = TRUE)
+                         verbose = TRUE,
+                         with.sample.file = FALSE)
 
   # get the optional parameters
   dot.names <- names(list(...))
@@ -489,10 +532,9 @@ checkDotParRun <- function(...) {
   if(length(dot.names) > 0) {
     if(any(dot.names %in% available.names) == FALSE) {
       wrong.names <- dot.names[!dot.names %in% available.names]
-      stop(paste("Unknown optional parameter were provided! The following
-                 optional parameters are available:", dot.names, sep = ' '))
+      stop("Unknown optional parameter were provided")
     }
-    }
+  }
 
   # check each parameter
   for(p in dot.names) {
@@ -523,32 +565,50 @@ checkDotParRun <- function(...) {
       checkVerbose(verbose = list(...)[[p]])
       default.values[["verbose"]] <- list(...)[[p]]
     }
+    if(p == "sample.file") {
+      checkSampleFile(verbose = list(...)[[p]])
+      default.values[["sample.file"]] <- list(...)[[p]]
+    }
   }
 
   return (default.values)
+}
+
+
+
+
+
+
+# Function:
+# Check the input arguments of the main run, stop if violated.
+checkInputMain <- function(genotype,
+                           traits,
+                           trait.type,
+                           strains,
+                           model,
+                           mcmc.chains,
+                           mcmc.steps,
+                           mcmc.warmup,
+                           cores,
+                           hdi.level,
+                           stat.learn.method,
+                           cv.steps) {
+
+
+  # Function:
+  # Is a genotype (SNP) bi-allelic?
+  checkBiallelic <- function(genotype) {
+
+    isBi <- function(x) {
+      return(length(unique(x)) <= 2)
+    }
+
+    is.bi <- apply(X = genotype, MARGIN = 2, FUN = isBi)
+
+    return(all(is.bi == TRUE))
   }
 
-
-
-
-# Description:
-# Provided the input arguments, this function checks their validity. It
-# stops the execution if a problem is encountered and prints out warnings.
-checkInput <- function(genotype,
-                       phenotype,
-                       phenotype.type,
-                       model.type,
-                       mcmc.chains,
-                       mcmc.steps,
-                       mcmc.warmup,
-                       cores,
-                       hdi.level,
-                       stat.learn.method,
-                       cv.steps,
-                       rpa.iterations,
-                       with.stan.obj) {
-
-  checkGenotypePhenotype <- function(genotype, phenotype, phenotype.type) {
+  checkGenotypeTrait <- function(genotype, traits, trait.type) {
     # CHECK: genotype
     if(is.null(attr(genotype, "class")) == FALSE) {
       if(!attr(genotype, "class") %in% c("AAMultipleAlignment",
@@ -563,8 +623,13 @@ checkInput <- function(genotype,
           stop("The genotypes cannot have less than two observations, or the
                number of genotypes cannot be 0.")
         }
+
+        if(checkBiallelic(genotype = temp) == FALSE) {
+          stop("Only bi-allelic genotypes allowed (each SNP
+             must have at most 2 genotypes)")
         }
       }
+    }
     else {
       if(is.vector(genotype)) {
         genotype <- matrix(data = genotype, ncol = 1)
@@ -585,101 +650,138 @@ checkInput <- function(genotype,
         stop("If it is structured as vector/matrix/data.frame,
              the genotype have be of character type.")
       }
+
+      if(checkBiallelic(genotype = genotype) == FALSE) {
+        stop("Only bi-allelic genotypes allowed (each SNP
+             must have at most 2 genotypes)")
       }
+    }
 
 
 
-    # CHECK: phenotype
-    if(!is.vector(phenotype) & !is.matrix(phenotype)) {
-      stop("The phenotype must be either a vector (single phenotype) or matrix
-           (with multiple phenotypes = columns), where the rows match the rows
+    # CHECK: traits
+    if(!is.vector(traits) & !is.matrix(traits)) {
+      stop("The traits must be either a vector (single traits) or matrix
+           (with multiple traits = columns), where the rows match the rows
            of the genotype data")
     }
 
     # convert vector -> matrix
-    if(is.vector(phenotype) == TRUE) {
-      phenotype <- matrix(data = phenotype, ncol = 1)
+    if(is.vector(traits) == TRUE) {
+      traits <- matrix(data = traits, ncol = 1)
     }
 
-    if(!is.numeric(phenotype)) {
-      stop("The phenotype must be of numeric type.")
+    if(!is.numeric(traits)) {
+      stop("The traits must be of numeric type.")
     }
 
-    if(length(phenotype) < 3) {
-      stop("The phenotype must contain at least 3 data points.")
+    if(nrow(traits) < 3) {
+      stop("The traits must contain at least 3 data points.")
     }
 
-    if(nrow(genotype) != nrow(phenotype)) {
-      stop("length(genotype) != length(phenotype),
+    if(nrow(genotype) != nrow(traits)) {
+      stop("length(genotype) != length(traits),
            they must be equal in length.")
     }
 
 
 
-    # CHECK: phenotype.type
-    if(is.vector(phenotype.type) == FALSE) {
-      stop("phenotype.type must be vector. Each element in this vector refers
-           to the type of each phenotype, with 'Q' (for quantitative phenotypes)
-           or 'D' (for dichotomous) included as each columns in the phenotype
-           data. If a single phenotype is provided, then the phenotype type
-           should be a single 'Q' or 'D'.")
+    # CHECK: trait.type
+    if(is.vector(trait.type) == FALSE) {
+      stop("trait.type must be vector. Each element in this vector refers
+           to the type of each traits, with 'Q' (for quantitative traits)
+           or 'D' (for dichotomous) included as each columns in the traits
+           data. If a single trait is provided, then the trait.type should
+           be a single 'Q' or 'D'.")
     }
 
-    if(length(phenotype.type) == 0) {
-      stop("The phenotype.type vector must contain at least 1 element.")
+    if(length(trait.type) == 0) {
+      stop("The trait.type vector must contain at least 1 element.")
     }
 
-    if(typeof(phenotype.type) != "character") {
-      stop("phenotype.type must be character vector with elements 'Q' (for
-           quantitative phenotypes) or 'D' (for dichotomous)")
+    if(typeof(trait.type) != "character") {
+      stop("trait.type must be character vector with elements 'Q' (for
+           quantitative traits) or 'D' (for dichotomous)")
     }
 
-    if(ncol(phenotype) != length(phenotype.type)) {
-      stop("Number of phenotypes provided differs from phenotypes types.")
+    if(ncol(traits) != length(trait.type)) {
+      stop("Number of traits provided differs from traits types.")
     }
 
-    if(all(phenotype.type %in% c("Q", "D")) == FALSE) {
-      stop("phenotype.type must be character vector with elements 'Q' (for
-           quantitative phenotypes) or 'D' (for dichotomous)")
+    if(all(trait.type %in% c("Q", "D")) == FALSE) {
+      stop("trait.type must be character vector with elements 'Q' (for
+           quantitative traits) or 'D' (for dichotomous)")
     }
-    }
+  }
 
-  checkPhenotypeValidity <- function(phenotype, phenotype.type) {
+  checkTraitValidity <- function(traits, trait.type) {
 
     # convert vector -> matrix
-    if(is.vector(phenotype) == TRUE) {
-      phenotype <- matrix(data = phenotype, ncol = 1)
+    if(is.vector(traits) == TRUE) {
+      traits <- matrix(data = traits, ncol = 1)
     }
 
-    # check phenotype types
-    for(i in 1:length(phenotype.type)) {
-      if(phenotype.type[i] == "D") {
-        if(length(unique(phenotype[, i])) != 2) {
-          stop("The dichotomous phenotypes must contains exactly two
+    # check traits types
+    for(i in 1:length(trait.type)) {
+      if(trait.type[i] == "D") {
+        if(length(unique(traits[, i])) != 2) {
+          stop("The dichotomous traits must contain exactly two
                categories (classes) \n")
         }
-        }
-      if(phenotype.type[i] == "Q") {
-        if(length(unique(phenotype[, i])) <= 3) {
-          warning("The quantitative phenotype/s contains 3 or less unique
+      }
+      if(trait.type[i] == "Q") {
+        if(length(unique(traits[, i])) <= 3) {
+          warning("The quantitative trait/s contains 3 or less unique
                   elements \n")
         }
-        }
       }
-      }
+    }
+  }
 
-  checkModelType <- function(model.type) {
-    # CHECK: model.type
-    if(length(model.type) != 1) {
-      stop("model.type must be a string (default = 'univariate')")
+  checkStrains <- function(strains, traits) {
+
+    if(is.vector(strains) == FALSE) {
+      stop("The strain identifiers must be provided in a vector")
     }
 
-    if(!is.character(model.type)) {
-      stop("model.type must be a string: 'univariate' or 'hierarchical'")
+    if(is.character(strains) == FALSE &
+       is.numeric(strains) == FALSE &
+       is.factor(strains) == FALSE) {
+      stop("The strain identifiers must be provided in a character or
+           numeric or factor vector")
     }
 
-    if(!model.type %in% c("univariate", "hierarchical")) {
-      stop("phenotype.type must be a string: 'univariate' or 'hierarchical'")
+    if(is.vector(traits) == TRUE) {
+      if(length(traits) != length(strains)) {
+        stop("One strain identifier per individual (trait measurement)
+             must be provided")
+      }
+    }
+    else {
+      if(nrow(traits) != length(strains)) {
+        stop("One strain identifier per individual (traits measurement)
+             must be provided")
+      }
+    }
+
+    if(length(strains) == 0) {
+      stop("One strain identifier per individual (traits measurement)
+             must be provided")
+    }
+  }
+
+  checkModel <- function(model) {
+    # CHECK: model
+    if(length(model) != 1) {
+      stop("model must be one of 'M0', 'M0c', 'M1', 'M1c', 'M2' or 'M2c'")
+    }
+
+    if(!is.character(model)) {
+      stop("model must be of 'M0', 'M0c', 'M1', 'M1c', 'M2' or 'M2c'")
+    }
+
+    if(!model %in% c("M0", "M0c", "M1", "M1c", "M2", "M2c")) {
+      stop("model must be of 'M0', 'M0c', 'M1', 'M1c', 'M2' or 'M2c'")
     }
   }
 
@@ -758,7 +860,7 @@ checkInput <- function(genotype,
   }
 
   checkMlMethod <- function(stat.learn.method) {
-    # CHECK: phenotype.type
+    # CHECK: trait.type
     if(length(stat.learn.method) != 1) {
       stop("stat.learn.method must be a string: 'rf' or 'svm'")
     }
@@ -789,9 +891,10 @@ checkInput <- function(genotype,
   }
 
   if(is.null(genotype) | missing(genotype) |
-     is.null(phenotype) | missing(phenotype) |
-     is.null(phenotype.type) | missing(phenotype.type) |
-     is.null(model.type) | missing(model.type) |
+     is.null(traits) | missing(traits) |
+     is.null(trait.type) | missing(trait.type) |
+     is.null(strains) | missing(strains) |
+     is.null(model) | missing(model) |
      is.null(mcmc.chains) | missing(mcmc.chains) |
      is.null(mcmc.steps) | missing(mcmc.steps) |
      is.null(mcmc.warmup) | missing(mcmc.warmup) |
@@ -802,12 +905,11 @@ checkInput <- function(genotype,
     stop("arguments must be non-NULL/specified")
   }
 
-  checkGenotypePhenotype(genotype = genotype,
-                         phenotype = phenotype,
-                         phenotype.type = phenotype.type)
-  checkPhenotypeValidity(phenotype = phenotype,
-                         phenotype.type = phenotype.type)
-  checkModelType(model.type = model.type)
+  checkGenotypeTrait(genotype = genotype, traits = traits,
+                     trait.type = trait.type)
+  checkTraitValidity(traits = traits, trait.type = trait.type)
+  checkStrains(strains = strains, traits = traits)
+  checkModel(model = model)
   checkMcmcIterations(mcmc.steps = mcmc.steps)
   checkMcmcWarmup(mcmc.warmup = mcmc.warmup)
   checkMcmcChains(mcmc.chains = mcmc.chains)
@@ -815,12 +917,12 @@ checkInput <- function(genotype,
   checkHdi(hdi.level = hdi.level)
   checkMlMethod(stat.learn.method = stat.learn.method)
   checkCv(stat.learn.method = stat.learn.method, cv.steps = cv.steps)
-    }
+}
 
 
 
 
-# Description:
+# Function:
 # Provided the input arguments, this function checks their validity. It
 # stops the execution if a problem is encountered and prints out warnings.
 checkInputPhyloBias <- function(input.kinship.matrix,
@@ -840,8 +942,8 @@ checkInputPhyloBias <- function(input.kinship.matrix,
           stop("the genotypes cannot have less than two observations the or
                number of genotypes cannot be 0.")
         }
-        }
       }
+    }
     else {
       if(is.vector(genotype)) {
         genotype <- matrix(data = genotype, ncol = 1)
@@ -861,8 +963,8 @@ checkInputPhyloBias <- function(input.kinship.matrix,
         stop("if it is structured in matrix/data.frame the genotype must
              be of character type.")
       }
-      }
-      }
+    }
+  }
 
 
   checkKinship <- function(input.kinship.matrix) {
@@ -899,21 +1001,29 @@ checkInputPhyloBias <- function(input.kinship.matrix,
     checkKinship(input.kinship.matrix = input.kinship.matrix)
   }
   checkGenotype(genotype = genotype)
-    }
+}
 
 
 
 
 
+# Function:
+# If an object of type DNAMultipleAlignment
+convertMsaToGenotype <- function(genotype) {
+  if(is.null(attr(genotype, "class")) == FALSE) {
+    genotype <- as.matrix(genotype)
+  }
+  return (genotype)
+}
 
 
 
 
 
-# Description:
+# Function:
 # Combine data from Bayesian inference and statistical learning
 getScores <- function(p, s,
-                      genphen.data,
+                      gt.data,
                       hdi.level) {
   probs <- c((1-hdi.level)/2, 1-(1-hdi.level)/2)
   d.full <- data.frame(summary(p$posterior, probs = probs)$summary,
@@ -921,13 +1031,10 @@ getScores <- function(p, s,
   d.full$par <- rownames(d.full)
 
 
-  xmap <- genphen.data$xmap
-  scores <- vector(mode = "list", length = ncol(genphen.data$Y))
-  for(i in 1:ncol(genphen.data$Y)) {
+  xmap <- gt.data$xmap
+  scores <- vector(mode = "list", length = ncol(gt.data$Y))
+  for(i in 1:ncol(gt.data$Y)) {
     s.p <- s[s$p == i, ]
-    # list(results = results,
-    #      ca.list = ca.list,
-    #      kappa.list = kappa.list)
 
     key <- paste("beta\\[", i, "\\,", sep = '')
     d <- d.full[which(regexpr(pattern = key, text = d.full$par) != -1

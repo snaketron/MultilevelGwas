@@ -1,26 +1,20 @@
 Package: MLgwas
-Title: What the Package Does (One Line, Title Case)
+Title: Tool for multi-level genome wide association studies of multiple traits
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Simo",
+           family = "Kitanovski",
            role = c("aut", "cre"),
-           email = "first.last@example.com")
-Description: What the package does (one paragraph).
+           email = "simo.kitanovski@uni-due.de")
+Description: Genome wide association studies of multiple traits with Bayesian 
+    multi-level models and statistical learning techniques.
 License: GPL (>=3)
-Depends: 
-    methods,
-    R (>= 3.4.0),
-    Rcpp (>= 1.0.1)
-Imports: 
-    rstan (>= 2.18.2),
-    rstantools (>= 1.5.1)
+Depends: R (>= 3.4.0), Rcpp (>= 1.0.1), methods, stats, graphics
+Imports: rstan (>= 2.18.2), rstantools (>= 1.5.1), ranger, parallel, 
+    foreach, doParallel, e1071, Biostrings, rPref
 LinkingTo: 
-    BH (>= 1.69.0-1),
-    Rcpp (>= 1.0.1),
-    RcppEigen (>= 0.3.3.5.0),
-    rstan (>= 2.18.2),
-    StanHeaders (>= 2.18.1)
+    BH (>= 1.69.0-1), Rcpp (>= 1.0.1), RcppEigen (>= 0.3.3.5.0),
+    rstan (>= 2.18.2), StanHeaders (>= 2.18.1)
 Encoding: UTF-8
 LazyData: true
 NeedsCompilation: yes

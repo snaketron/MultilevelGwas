@@ -20,36 +20,6 @@ compareModels <- function(models,
     return (p)
   }
 
-  # Function:
-  # Given model.name, find appropriate stan model
-  getStanModel <- function(model.name) {
-    # M0
-    if(model.name == "M0") {
-      model <- stanmodels$M0_loglik
-    }
-    if(model.name == "M0c") {
-      model <- stanmodels$M0c_loglik
-    }
-
-    # M1
-    if(model.name == "M1") {
-      model <- stanmodels$M1_loglik
-    }
-    if(model.name == "M1c") {
-      model <- stanmodels$M1c_loglik
-    }
-
-    # M2
-    if(model.name == "M2") {
-      model <- stanmodels$M2_loglik
-    }
-    if(model.name == "M2c") {
-      model <- stanmodels$M2c_loglik
-    }
-
-    return (model)
-  }
-
 
   # TODO:
   # here convert genotype.matrix & phenotype matrix into data.list
@@ -63,7 +33,8 @@ compareModels <- function(models,
 
   # run each model
   for(i in 1:length(models)) {
-    model <- getStanModel(model.name = models[i])
+    model <- getStanModel(model.name = models[i],
+                          comparison.mode = TRUE)
 
     # collect fits
     p[[i]] <- runStanModel(model = model, data.list = data.list)
@@ -75,3 +46,6 @@ compareModels <- function(models,
 }
 
 
+
+# TODO:
+# loo operation here

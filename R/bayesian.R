@@ -2,49 +2,73 @@
 
 # Description:
 # Bayesian inference
-runBayesianInference <- function(genphen.data,
+runBayesianInference <- function(gt.data,
                                  mcmc.chains,
                                  mcmc.steps,
                                  mcmc.warmup,
                                  cores,
-                                 model.stan,
-                                 ...) {
+                                 stan.model,
+                                 dot.param) {
 
   # extra conversion
   Yd <- c()
-  if(genphen.data$Ntd > 0) {
-    for(i in 1:genphen.data$Ntd) {
-      Yd <- cbind(Yd, as.numeric(genphen.data$Yd[, i]))
+  if(gt.data$Ntd > 0) {
+    for(i in 1:gt.data$Ntd) {
+      Yd <- cbind(Yd, as.numeric(gt.data$Yd[, i]))
     }
-    genphen.data$Yd <- Yd
+    gt.data$Yd <- Yd
   }
 
 
-  data.list <- list(N = genphen.data$N,
-                    Ntq = genphen.data$Ntq,
-                    Ntd = genphen.data$Ntd,
-                    Ns = genphen.data$Ns,
-                    Nsk = genphen.data$Nsk,
-                    Yq = genphen.data$Yq,
-                    Yd = genphen.data$Yd,
-                    X = genphen.data$X,
-                    M = genphen.data$Ms)
+  data.list <- list(N = gt.data$N,
+                    Ntq = gt.data$Ntq,
+                    Ntd = gt.data$Ntd,
+                    Ns = gt.data$Ns,
+                    Nsk = gt.data$Nsk,
+                    Yq = gt.data$Yq,
+                    Yd = gt.data$Yd,
+                    X = gt.data$X,
+                    M = gt.data$Ms)
 
 
   # get initial parameter values
-  control <- list(adapt_delta = list(...)[["adapt_delta"]],
-                  max_treedepth = list(...)[["max_treedepth"]])
-  refresh <- list(...)[["refresh"]]
-  verbose <- list(...)[["verbose"]]
-  posterior <- rstan::sampling(object = model.stan,
+  control <- list(adapt_delta = dot.param$adapt_delta,
+                  max_treedepth = dot.param$max_treedepth)
+
+  # create names for sample files to use if sample.file is specified
+  sample.file <- NULL
+  if(dot.param$with.sample.file == TRUE) {
+    sample.file <- paste(stan.model$model_name, "posterior", sep = '.')
+  }
+
+  # run
+  posterior <- rstan::sampling(object = stan.model,
                                data = data.list,
                                iter = mcmc.steps,
                                warmup = mcmc.warmup,
                                chains = mcmc.chains,
                                cores = cores,
                                control = control,
-                               verbose = verbose,
-                               refresh = refresh)
+                               verbose = dot.param$verbose,
+                               refresh = dot.param$refresh,
+                               sample_file = sample.file)
+
+  # collect results from csv files if sample.file is specified
+  if(dot.param$with.sample.file == TRUE) {
+    posterior.files <- paste(sample.file, 1:mcmc.chains, sep = '_')
+    if(all(file.exists(posterior.files)) == TRUE) {
+      posterior <- rstan::read_stan_csv(csvfiles = posterior.files)
+    }
+    else {
+      posterior.files <- paste(tempdir(), posterior.files, sep = '/')
+      if(all(file.exists(posterior.files)) == TRUE) {
+        posterior <- rstan::read_stan_csv(csvfiles = posterior.files)
+      }
+      else {
+        stop("Cannot find posterior files")
+      }
+    }
+  }
 
   # return
   return (list(posterior = posterior))
