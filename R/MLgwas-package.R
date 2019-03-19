@@ -1,11 +1,11 @@
-#' The 'MouseGwas' package.
+#' The 'MLgwas' package.
 #'
 #' @description A DESCRIPTION OF THE PACKAGE
 #'
 #' @docType package
-#' @name MouseGwas-package
-#' @aliases MouseGwas
-#' @useDynLib MouseGwas, .registration = TRUE
+#' @name MLgwas-package
+#' @aliases MLgwas
+#' @useDynLib MLgwas, .registration = TRUE
 #' @import methods
 #' @import Rcpp
 #' @import rstantools

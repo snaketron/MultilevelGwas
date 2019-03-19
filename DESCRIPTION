@@ -1,27 +1,23 @@
-Package: MouseGwas
+Package: MLgwas
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "Simo",
-           family = "Kitanovski",
+    person(given = "First",
+           family = "Last",
            role = c("aut", "cre"),
-           email = "simo.kitanovski@uni-due.de")
-Description: Tool for genome-wide association for studying multiple 
-    traits of inbred mice. Using Bayesian multi-level models and 
-    statistical learning techniques, MouseGwas extracts as much 
-    information from the genotype-phenotype data as possible, and 
-    summarizes the association strengths using intuitive metrics.
+           email = "first.last@example.com")
+Description: What the package does (one paragraph).
 License: GPL (>=3)
 Depends: 
     methods,
     R (>= 3.4.0),
-    Rcpp (>= 1.0.0)
+    Rcpp (>= 1.0.1)
 Imports: 
     rstan (>= 2.18.2),
     rstantools (>= 1.5.1)
 LinkingTo: 
     BH (>= 1.69.0-1),
-    Rcpp (>= 1.0.0),
+    Rcpp (>= 1.0.1),
     RcppEigen (>= 0.3.3.5.0),
     rstan (>= 2.18.2),
     StanHeaders (>= 2.18.1)
