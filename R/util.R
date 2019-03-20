@@ -100,7 +100,6 @@ getStanData <- function(genotype,
     for(i in 1:length(X)) {
       X[[i]]$xmap$site <- i
     }
-    browser()
     xmap <- do.call(rbind, lapply(X = X, FUN = getXMap))
     X <- do.call(cbind, lapply(X = X, FUN = getXData))
 
@@ -317,6 +316,32 @@ getStanModel <- function(model.name, comparison.mode) {
 
 
 # Function:
+# Given model.name, fetch appropriate stan model
+getStanModelDebug <- function(model.name) {
+  # M0
+  if(model.name == "M0") {
+    stan.model <- rstan::stan_model(file = "src/stan_files/M0_loglik.stan")
+  }
+
+  # M1
+  if(model.name == "M1") {
+    stan.model <- rstan::stan_model(file = "src/stan_files/M1_loglik.stan")
+  }
+
+  # M2
+  if(model.name == "M2") {
+    stan.model <- rstan::stan_model(file = "src/stan_files/M2_loglik.stan")
+  }
+
+  return (stan.model)
+}
+
+
+
+
+
+
+# Function:
 # Check the (...)  parameters for the model comparison function
 checkDotParModelComparison <- function(...) {
 
@@ -370,14 +395,26 @@ checkDotParModelComparison <- function(...) {
     return (refresh)
   }
 
+  checkSampleFile <- function(with.sample.file) {
+    if(length(with.sample.file) != 1) {
+      stop("with.sample.file is a logical parameter.")
+    }
+
+    if(is.logical(with.sample.file) == FALSE) {
+      stop("with.sample.file is a logical parameter.")
+    }
+  }
+
   available.names <- c("adapt_delta",
                        "max_treedepth",
                        "refresh",
-                       "verbose")
+                       "verbose",
+                       "with.sample.file")
   default.values <- list(adapt_delta = 0.95,
                          max_treedepth = 10,
                          refresh = 250,
-                         verbose = TRUE)
+                         verbose = TRUE,
+                         with.sample.file = FALSE)
 
   # get the optional parameters
   dot.names <- names(list(...))
@@ -385,8 +422,7 @@ checkDotParModelComparison <- function(...) {
   if(length(dot.names) > 0) {
     if(any(dot.names %in% available.names) == FALSE) {
       wrong.names <- dot.names[!dot.names %in% available.names]
-      stop(paste("Unknown optional parameter were provided! The following
-                 optional parameters are available:", dot.names, sep = ' '))
+      stop("Unknown optional parameter were provided")
     }
   }
 
@@ -410,6 +446,10 @@ checkDotParModelComparison <- function(...) {
     if(p == "verbose") {
       checkVerbose(verbose = list(...)[[p]])
       default.values[["verbose"]] <- list(...)[[p]]
+    }
+    if(p == "sample.file") {
+      checkSampleFile(verbose = list(...)[[p]])
+      default.values[["sample.file"]] <- list(...)[[p]]
     }
   }
 
@@ -573,7 +613,6 @@ checkDotParRun <- function(...) {
 
   return (default.values)
 }
-
 
 
 
@@ -921,6 +960,309 @@ checkInputMain <- function(genotype,
 
 
 
+# Function:
+# Check the input arguments of the model comparison function
+checkInputModelComparison <- function(genotype,
+                                      traits,
+                                      trait.type,
+                                      strains,
+                                      models,
+                                      mcmc.chains,
+                                      mcmc.steps,
+                                      mcmc.warmup,
+                                      cores,
+                                      hdi.level) {
+
+
+  # Function:
+  # Is a genotype (SNP) bi-allelic?
+  checkBiallelic <- function(genotype) {
+
+    isBi <- function(x) {
+      return(length(unique(x)) <= 2)
+    }
+
+    is.bi <- apply(X = genotype, MARGIN = 2, FUN = isBi)
+
+    return(all(is.bi == TRUE))
+  }
+
+  checkGenotypeTrait <- function(genotype, traits, trait.type) {
+    # CHECK: genotype
+    if(is.null(attr(genotype, "class")) == FALSE) {
+      if(!attr(genotype, "class") %in% c("AAMultipleAlignment",
+                                         "DNAMultipleAlignment")) {
+        stop("genotype can be one of the following structures: vector (for a
+             single SNP), matrix, data.frame or Biostrings structures such as
+             DNAMultipleAlignment or AAMultipleAlignment")
+      }
+      else {
+        temp <- as.matrix(genotype)
+        if(nrow(temp) < 2 | ncol(temp) == 0) {
+          stop("The genotypes cannot have less than two observations, or the
+               number of genotypes cannot be 0.")
+        }
+
+        if(checkBiallelic(genotype = temp) == FALSE) {
+          stop("Only bi-allelic genotypes allowed (each SNP
+               must have at most 2 genotypes)")
+        }
+      }
+    }
+    else {
+      if(is.vector(genotype)) {
+        genotype <- matrix(data = genotype, ncol = 1)
+      }
+
+      if(nrow(genotype) < 2 | ncol(genotype) == 0) {
+        stop("The genotypes cannot have less than two observations or the
+             number of genotypes cannot be 0.")
+      }
+
+      if(!is.matrix(genotype) & !is.data.frame(genotype)) {
+        stop("genotype can be one of the following structures: vector (for a
+             single SNP), matrix, data.frame or Biostrings structures such as
+             DNAMultipleAlignment or AAMultipleAlignment")
+      }
+
+      if(typeof(genotype) != "character") {
+        stop("If it is structured as vector/matrix/data.frame,
+             the genotype have be of character type.")
+      }
+
+      if(checkBiallelic(genotype = genotype) == FALSE) {
+        stop("Only bi-allelic genotypes allowed (each SNP
+             must have at most 2 genotypes)")
+      }
+    }
+
+
+
+    # CHECK: traits
+    if(!is.vector(traits) & !is.matrix(traits)) {
+      stop("The traits must be either a vector (single traits) or matrix
+           (with multiple traits = columns), where the rows match the rows
+           of the genotype data")
+    }
+
+    # convert vector -> matrix
+    if(is.vector(traits) == TRUE) {
+      traits <- matrix(data = traits, ncol = 1)
+    }
+
+    if(!is.numeric(traits)) {
+      stop("The traits must be of numeric type.")
+    }
+
+    if(nrow(traits) < 3) {
+      stop("The traits must contain at least 3 data points.")
+    }
+
+    if(nrow(genotype) != nrow(traits)) {
+      stop("length(genotype) != length(traits),
+           they must be equal in length.")
+    }
+
+
+
+    # CHECK: trait.type
+    if(is.vector(trait.type) == FALSE) {
+      stop("trait.type must be vector. Each element in this vector refers
+           to the type of each traits, with 'Q' (for quantitative traits)
+           or 'D' (for dichotomous) included as each columns in the traits
+           data. If a single trait is provided, then the trait.type should
+           be a single 'Q' or 'D'.")
+    }
+
+    if(length(trait.type) == 0) {
+      stop("The trait.type vector must contain at least 1 element.")
+    }
+
+    if(typeof(trait.type) != "character") {
+      stop("trait.type must be character vector with elements 'Q' (for
+           quantitative traits) or 'D' (for dichotomous)")
+    }
+
+    if(ncol(traits) != length(trait.type)) {
+      stop("Number of traits provided differs from traits types.")
+    }
+
+    if(all(trait.type %in% c("Q", "D")) == FALSE) {
+      stop("trait.type must be character vector with elements 'Q' (for
+           quantitative traits) or 'D' (for dichotomous)")
+    }
+  }
+
+  checkTraitValidity <- function(traits, trait.type) {
+
+    # convert vector -> matrix
+    if(is.vector(traits) == TRUE) {
+      traits <- matrix(data = traits, ncol = 1)
+    }
+
+    # check traits types
+    for(i in 1:length(trait.type)) {
+      if(trait.type[i] == "D") {
+        if(length(unique(traits[, i])) != 2) {
+          stop("The dichotomous traits must contain exactly two
+               categories (classes) \n")
+        }
+      }
+      if(trait.type[i] == "Q") {
+        if(length(unique(traits[, i])) <= 3) {
+          warning("The quantitative trait/s contains 3 or less unique
+                  elements \n")
+        }
+      }
+    }
+  }
+
+  checkStrains <- function(strains, traits) {
+
+    if(is.vector(strains) == FALSE) {
+      stop("The strain identifiers must be provided in a vector")
+    }
+
+    if(is.character(strains) == FALSE &
+       is.numeric(strains) == FALSE &
+       is.factor(strains) == FALSE) {
+      stop("The strain identifiers must be provided in a character or
+           numeric or factor vector")
+    }
+
+    if(is.vector(traits) == TRUE) {
+      if(length(traits) != length(strains)) {
+        stop("One strain identifier per individual (trait measurement)
+             must be provided")
+      }
+    }
+    else {
+      if(nrow(traits) != length(strains)) {
+        stop("One strain identifier per individual (traits measurement)
+             must be provided")
+      }
+    }
+
+    if(length(strains) == 0) {
+      stop("One strain identifier per individual (traits measurement)
+           must be provided")
+    }
+  }
+
+  checkModels <- function(models) {
+    # CHECK: model
+    if(length(models) <= 0) {
+      stop("models must contain a combination of the following models:
+           'M0', 'M0c', 'M1', 'M1c', 'M2' or 'M2c'")
+    }
+
+
+    if(all(models %in% c("M0", "M0c", "M1", "M1c", "M2", "M2c")) == FALSE) {
+      stop("models must contain a combination of the following models:
+           'M0', 'M0c', 'M1', 'M1c', 'M2' or 'M2c'")
+    }
+  }
+
+  checkMcmcIterations <- function(mcmc.steps) {
+    # CHECK: mcmc.steps
+    if(length(mcmc.steps) != 1) {
+      stop("the mcmc.steps must be a number > 0 (default = 10000).")
+    }
+
+    if(!is.numeric(mcmc.steps)) {
+      stop("mcmc.steps must be a numeric argument (default = 10000).")
+    }
+
+    if(mcmc.steps <= 0) {
+      stop("mcmc.steps must be larger than 0 (default = 10000).")
+    }
+  }
+
+  checkMcmcWarmup <- function(mcmc.warmup) {
+    # CHECK: mcmc.warmup
+    if(length(mcmc.warmup) != 1) {
+      stop("the mcmc.warmup must be a number > 0 (default = 5000).")
+    }
+
+    if(!is.numeric(mcmc.warmup)) {
+      stop("mcmc.warmup must be a numeric argument (default = 5000).")
+    }
+
+    if(mcmc.warmup <= 0) {
+      stop("mcmc.warmup must be larger than 0 (default = 5000).")
+    }
+  }
+
+  checkMcmcChains <- function(mcmc.chains) {
+    # CHECK: mcmc.chains
+    if(length(mcmc.chains) != 1) {
+      stop("mcmc.chains must be a positive integer > 0 (default = 1).")
+    }
+
+    if(!is.numeric(mcmc.chains)) {
+      stop("mcmc.chains must be a positive integer > 0 (default = 1).")
+    }
+
+    if(mcmc.chains <= 0) {
+      stop("mcmc.chains must be a positive integer > 0 (default = 1).")
+    }
+  }
+
+  checkCores <- function(cores) {
+    # CHECK: cores
+    if(length(cores) != 1) {
+      stop("cores is numeric parameter.")
+    }
+
+    if(is.numeric(cores) == FALSE) {
+      stop("cores is numeric parameter.")
+    }
+
+    if(cores <= 0) {
+      stop("cores is numeric parameter >=1.")
+    }
+  }
+
+  checkHdi <- function(hdi.level) {
+    if(length(hdi.level) != 1) {
+      stop("The HDI level must be in range (0, 1).")
+    }
+
+    if(is.numeric(hdi.level) == FALSE) {
+      stop("The HDI level must be in range (0, 1).")
+    }
+
+    if(hdi.level >= 1 | hdi.level <= 0) {
+      stop("The HDI level must be in range (0, 1).")
+    }
+  }
+
+  if(is.null(genotype) | missing(genotype) |
+     is.null(traits) | missing(traits) |
+     is.null(trait.type) | missing(trait.type) |
+     is.null(strains) | missing(strains) |
+     is.null(models) | missing(models) |
+     is.null(mcmc.chains) | missing(mcmc.chains) |
+     is.null(mcmc.steps) | missing(mcmc.steps) |
+     is.null(mcmc.warmup) | missing(mcmc.warmup) |
+     is.null(cores) | missing(cores) |
+     is.null(hdi.level) | missing(hdi.level)) {
+    stop("arguments must be non-NULL/specified")
+  }
+
+  checkGenotypeTrait(genotype = genotype, traits = traits,
+                     trait.type = trait.type)
+  checkTraitValidity(traits = traits, trait.type = trait.type)
+  checkStrains(strains = strains, traits = traits)
+  checkModels(models = models)
+  checkMcmcIterations(mcmc.steps = mcmc.steps)
+  checkMcmcWarmup(mcmc.warmup = mcmc.warmup)
+  checkMcmcChains(mcmc.chains = mcmc.chains)
+  checkCores(cores = cores)
+  checkHdi(hdi.level = hdi.level)
+}
+
+
 
 # Function:
 # Provided the input arguments, this function checks their validity. It
@@ -1048,5 +1390,23 @@ getScores <- function(p, s,
   }
 
   return (scores)
+}
+
+
+
+# Function:
+# Computes HDI given a vector, taken "Doing Bayesian Analysis"
+getHdi <- function(vec, hdi.level) {
+  sortedPts <- sort(vec)
+  ciIdxInc <- floor(hdi.level * length(sortedPts))
+  nCIs = length(sortedPts) - ciIdxInc
+  ciWidth = rep(0 , nCIs)
+  for (i in 1:nCIs) {
+    ciWidth[i] = sortedPts[i + ciIdxInc] - sortedPts[i]
+  }
+  HDImin = sortedPts[which.min(ciWidth)]
+  HDImax = sortedPts[which.min(ciWidth) + ciIdxInc]
+  HDIlim = c(HDImin, HDImax)
+  return(HDIlim)
 }
 

@@ -21,14 +21,15 @@ runBayesianInference <- function(gt.data,
 
 
   data.list <- list(N = gt.data$N,
+                    Ns = gt.data$Ns,
+                    Nk = gt.data$Nk,
                     Ntq = gt.data$Ntq,
                     Ntd = gt.data$Ntd,
-                    Ns = gt.data$Ns,
-                    Nsk = gt.data$Nsk,
                     Yq = gt.data$Yq,
                     Yd = gt.data$Yd,
                     X = gt.data$X,
-                    M = gt.data$Ms)
+                    M = gt.data$Ms,
+                    K = gt.data$K)
 
 
   # get initial parameter values
@@ -71,5 +72,5 @@ runBayesianInference <- function(gt.data,
   }
 
   # return
-  return (list(posterior = posterior))
+  return (posterior)
 }

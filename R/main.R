@@ -3,8 +3,7 @@
 
 # Function:
 # Main analysis
-runMLgwas <- function(input.data,
-                      genotype,
+runMLgwas <- function(genotype,
                       traits,
                       trait.type,
                       strains,
