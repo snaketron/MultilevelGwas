@@ -30,7 +30,7 @@ transformed parameters {
   for(s in 1:Ns) {
     // multi_normal
     mu_beta[, s] = grand_mu_beta[, 1] + diag_pre_multiply(grand_sigma_beta, L_rho)*grand_z[, s];
-    }
+  }
 
 
   for(t in 1:(Ntq+Ntd)) {
@@ -47,7 +47,7 @@ model {
   for(i in 1:N) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yq[i,t] ~ normal(alpha[t] + rows_dot_product(X[i], to_vector(beta[t][, K[i]])), sigma[t]);
+        Yq[i,t] ~ normal(alpha[t] + rows_dot_product(X[i], to_vector(beta[t][, K[i]])), sigma[K[i]]);
       }
     }
     if(Ntd > 0) {

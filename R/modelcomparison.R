@@ -45,6 +45,7 @@ runModelComparison <- function(genotype,
   ps <- vector(mode = "list", length = length(models))
   names(ps) <- models
 
+  cat("1) Bayesian inference ... \n")
   # run each model
   for(i in 1:length(models)) {
 
@@ -65,25 +66,31 @@ runModelComparison <- function(genotype,
   }
 
 
-  # compute LOO_ic
-  loo.ic <- getLooIc(ps = ps)
+  # compute LOOIC
+  cat("2) Computing LOOIC ... \n")
+  loo.ic <- getLooIC(ps = ps)
 
 
+
+  cat("3) Posterior prediction ... \n")
   # compute PPC
-  ppc <- getPpc(ps = ps, gt.data = gt.data, models = models,
-                hdi.level = hdi.level, cores = cores)
+  ppc <- getPpc(ps = ps,
+                gt.data = gt.data,
+                models = models,
+                hdi.level = hdi.level,
+                cores = cores)
 
 
   return (list(ps = ps,
                loo.ic = loo.ic,
-               ppc = ppc))
+               ppc = ppc,
+               gt.data = gt.data))
 }
 
 
 
-# TODO:
 # loo information criterion
-getLooIc <- function(ps) {
+getLooIC <- function(ps) {
 
   loo.list <- vector(mode = "list", length = length(ps))
   names(loo.list) <- names(ps)
@@ -96,6 +103,8 @@ getLooIc <- function(ps) {
 
   return(loo.list)
 }
+
+
 
 
 # Function:

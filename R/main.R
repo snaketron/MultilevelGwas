@@ -48,6 +48,7 @@ runMLgwas <- function(genotype,
   # get the appropriate stan model
   # stan.model <- getStanModel(model.name = model,
   #                            comparison.mode = FALSE)
+  stan.model <- getStanModelDebug(model.name = model)
 
 
   cat("======== Bayesian Inference ======== \n")
@@ -100,6 +101,7 @@ runMLgwas <- function(genotype,
   #               gt.data = gt.data,
   #               hdi.level = hdi.level)
 
+  return(p)
 
   return (list(scores = o,
                ppc = ppc,

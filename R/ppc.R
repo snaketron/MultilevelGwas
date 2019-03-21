@@ -423,116 +423,109 @@ getPpcD <- function(ext, gt.data, model, s, hdi.level) {
 
 getPpcQD <- function(ext, gt.data, model, s, hdi.level) {
 
+  getMu <- function(x, y) {
+    return(rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3]))
+  }
+
+  getPr <- function(x, y) {
+    return(1/(1 + exp(-(x[1]+x[2]*y))))
+  }
+
 
   getPpcM0QD <- function(gt.data, p, hdi.level, s) {
-
-    getSnpMu <- function(x, y) {
-      return(x[1]+x[2]*y)
-    }
-
-    getMu <- function(x, y) {
-      return(mean(rnorm(n = 10, mean = x[1]+x[2]*y, sd = x[3])))
-    }
-
-    getPr <- function(x, y) {
-      return(1/(1 + exp(-(x[1]+x[2]*y))))
-    }
-
-    snp.summary <- c()
+    ppc.summary <- c()
 
     # Q-trait
     for(t in 1:gt.data$Ntq) {
       alpha.p <- paste("alpha", t, sep = '.')
       sigma.p <- paste("sigma", t, sep = '.')
-      beta.p <- paste("beta", t, s, sep = '.')
       # in case single Ntq => sigma no index
       if(gt.data$Ntq == 1) {
         sigma.p <- "sigma"
       }
 
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        # yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)],
-        #               MARGIN = 1, FUN = getMu, y = 1)
-        yhat <- apply(X = p[, c(alpha.p, beta.p)],
-                      MARGIN = 1, FUN = getSnpMu, y = 1)
+      # individual level
+      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+      for(i in 1:gt.data$N) {
+        beta.p <- paste("beta", t, s, sep = '.')
 
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-        row <- data.frame(t = t, s = s, k = NA, x = 1,
-                          y = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "snp")
-        snp.summary <- rbind(snp.summary, row)
+        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
+                           FUN = getMu, y = gt.data$X[i, s])
       }
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        # yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)],
-        #               MARGIN = 1, FUN = getMu, y = -1)
-        yhat <- apply(X = p[, c(alpha.p, beta.p)],
-                      MARGIN = 1, FUN = getSnpMu, y = -1)
 
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-        row <- data.frame(t = t, s = s, k = NA, x = -1,
-                          y = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "snp")
-        snp.summary <- rbind(snp.summary, row)
+      # snp level
+      if(sum(gt.data$X[, s] == 1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
+                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
+      # snp level
+      if(sum(gt.data$X[, s] == -1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
+                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
       }
     }
+    # clean up
+    rm(yhat, yhat.hdi, row)
 
 
     # D-trait
     for(d in 1:gt.data$Ntd) {
       t <- d + gt.data$Ntq
-      alpha.p <- paste("alpha", t, sep = '.')
-      beta.p <- paste("beta", t, s, sep = '.')
 
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat <- apply(X = p[, c(alpha.p, beta.p)],
-                      MARGIN = 1, FUN = getPr, y = 1)
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-        row <- data.frame(t = t, s = s, k = NA, x = 1,
-                          y=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1,d])),
-                          yhat = mean(yhat), yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2], level = "snp")
-        snp.summary <- rbind(snp.summary, row)
+      alpha.p <- paste("alpha", t, sep = '.')
+
+      # individual level
+      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+      for(i in 1:gt.data$N) {
+        beta.p <- paste("beta", t, s, sep = '.')
+
+        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
+                           FUN = getPr, y = gt.data$X[i, s])
       }
+
+      # snp level
+      if(sum(gt.data$X[, s] == 1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
+                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1,d])),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
+      # snp level
       if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat <- apply(X = p[, c(alpha.p, beta.p)],
-                      MARGIN = 1, FUN = getPr, y = -1)
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-        row <- data.frame(t = t, s = s, k = NA, x = -1,
-                          y=mean(as.numeric(gt.data$Yd[gt.data$X[,s] == -1,d])),
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "snp")
-        snp.summary <- rbind(snp.summary, row)
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
+                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == -1,d])),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
       }
     }
+    # clean up
+    rm(i, yhat, yhat.hdi, row)
 
-    return (list(snp.summary = snp.summary))
+    return (ppc.summary)
   }
 
   getPpcM1QD <- function(gt.data, p, hdi.level, s) {
-
-    getSnpMu <- function(x, y) {
-      return(x[1]+x[2]*y)
-    }
-
-    getMu <- function(x, y) {
-      return(mean(rnorm(n = 10, mean = x[1]+x[2]*y, sd = x[3])))
-    }
-
-    getPr <- function(x, y) {
-      return(1/(1 + exp(-(x[1]+x[2]*y))))
-    }
-
-
-    strain.summary <- c()
-    snp.summary <- c()
+    ppc.summary <- c()
 
     # Q-trait
     for(t in 1:gt.data$Ntq) {
@@ -543,82 +536,56 @@ getPpcQD <- function(ext, gt.data, model, s, hdi.level) {
         sigma.p <- "sigma"
       }
 
-      # strain level
-      for(k in 1:gt.data$Nk) {
-
-        beta.p <- paste("beta", t, s, k, sep = '.')
+      # individual level
+      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+      for(i in 1:gt.data$N) {
+        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
         # TODO: check in case single Ntq => sigma no index
         if(gt.data$Nk == 1) {
           beta.p <- paste("beta", t, s, sep = '.')
         }
 
-        # X == 1
-        yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                      FUN = getMu, y = 1)
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-
-        y.1 <- gt.data$Yq[gt.data$X[, s] == 1 & gt.data$K == k, t]
-        if(length(y.1) == 0) {
-          y.1 <- NA
-        }
-        else {
-          y.1 <- mean(y.1)
-        }
-        row <- data.frame(t = t, s = s, k = k, x = 1, y = y.1,
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "strain")
-        strain.summary <- rbind(strain.summary, row)
-
-
-        # X == -1
-        yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                      FUN = getMu, y = -1)
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-
-        y.0 <- gt.data$Yq[gt.data$X[, s] == -1 & gt.data$K == k, t]
-        if(length(y.0) == 0) {
-          y.0 <- NA
-        }
-        else {
-          y.0 <- mean(y.0)
-        }
-        row <- data.frame(t = t, s = s, k = k, x = -1, y = y.0,
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "strain")
-        strain.summary <- rbind(strain.summary, row)
+        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
+                           FUN = getMu, y = gt.data$X[i, s])
       }
-      # clean up
-      rm(k, beta.p, yhat, yhat.hdi, row)
 
+      # strain level
+      for(k in 1:gt.data$Nk) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
+                          y.real = mean(gt.data$Yq[gt.data$K == k, t]),
+                          y.ppc = mean(yhat[, gt.data$K == k]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
 
       # snp level
-      beta.p <- paste("mu_beta", t, s, sep = '.')
-      yhat.1 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                    FUN = getSnpMu, y = 1)
-      yhat.hdi.1 <- getHdi(vec = yhat.1, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = 1,
-                        y = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                        yhat = mean(yhat.1), yhat.L = yhat.hdi.1[1],
-                        yhat.H = yhat.hdi.1[2], level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-      yhat.0 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getSnpMu, y = -1)
-      yhat.hdi.0 <- getHdi(vec = yhat.0, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = -1,
-                        y = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                        yhat = mean(yhat.0), yhat.L = yhat.hdi.0[1],
-                        yhat.H = yhat.hdi.0[2], level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-
-      # clean up
-      rm(beta.p, yhat.1, yhat.hdi.1, row, yhat.0, yhat.hdi.0)
+      if(sum(gt.data$X[, s] == 1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
+                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
+      # snp level
+      if(sum(gt.data$X[, s] == -1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
+                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
     }
+    # clean up
+    rm(k, yhat, yhat.hdi, row)
 
 
     # D-trait
@@ -627,163 +594,119 @@ getPpcQD <- function(ext, gt.data, model, s, hdi.level) {
 
       alpha.p <- paste("alpha", t, sep = '.')
 
-      # strain level
-      for(k in 1:gt.data$Nk) {
-
-        beta.p <- paste("beta", t, s, k, sep = '.')
+      # individual level
+      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+      for(i in 1:gt.data$N) {
+        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
         # TODO: check in case single Ntq => sigma no index
         if(gt.data$Nk == 1) {
           beta.p <- paste("beta", t, s, sep = '.')
         }
 
-        # X == 1
-        yhat <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getPr, y = 1)
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-
-        y.1 <- as.numeric(gt.data$Yd[gt.data$X[, s] == 1 & gt.data$K == k, d])
-        if(length(y.1) == 0) {
-          y.1 <- NA
-        }
-        else {
-          y.1 <- mean(y.1)
-        }
-        row <- data.frame(t = t, s = s, k = k, x = 1, y = y.1,
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "strain")
-        strain.summary <- rbind(strain.summary, row)
-
-
-        # X == -1
-        yhat <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getPr, y = -1)
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-
-        y.0 <- as.numeric(gt.data$Yd[gt.data$X[, s] == -1 & gt.data$K == k, d])
-        if(length(y.0) == 0) {
-          y.0 <- NA
-        }
-        else {
-          y.0 <- mean(y.0)
-        }
-        row <- data.frame(t = t, s = s, k = k, x = -1, y = y.0,
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "strain")
-        strain.summary <- rbind(strain.summary, row)
+        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
+                           FUN = getPr, y = gt.data$X[i, s])
       }
-      # clean up
-      rm(k, beta.p, yhat, yhat.hdi, row)
 
-
+      # strain level
+      for(k in 1:gt.data$Nk) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
+                          y.real=mean(as.numeric(gt.data$Yq[gt.data$K == k,d])),
+                          y.ppc = mean(yhat[, gt.data$K == k]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
 
       # snp level
-      beta.p <- paste("mu_beta", t, s, sep = '.')
-      yhat.1 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getPr, y = 1)
-      yhat.hdi.1 <- getHdi(vec = yhat.1, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = 1,
-                        y=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1, d])),
-                        yhat = mean(yhat.1),
-                        yhat.L = yhat.hdi.1[1],
-                        yhat.H = yhat.hdi.1[2],
-                        level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-      yhat.0 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getPr, y = -1)
-      yhat.hdi.0 <- getHdi(vec = yhat.0, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = -1,
-                        y=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == -1, d])),
-                        yhat = mean(yhat.0),
-                        yhat.L = yhat.hdi.0[1],
-                        yhat.H = yhat.hdi.0[2],
-                        level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-
-      # clean up
-      rm(beta.p, yhat.1, yhat.hdi.1,
-         row, yhat.0, yhat.hdi.0)
+      if(sum(gt.data$X[, s] == 1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
+                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s]==1,d])),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
+      # snp level
+      if(sum(gt.data$X[, s] == -1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
+                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s]==-1,d])),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
     }
+    # clean up
+    rm(k, yhat, yhat.hdi, row)
 
-
-    return (list(snp.summary = snp.summary,
-                 strain.summary = strain.summary))
+    return (ppc.summary)
   }
 
   getPpcM2QD <- function(gt.data, p, hdi.level, s) {
-
-    getSnpMu <- function(x, y) {
-      return(x[1]+x[2]*y)
-    }
-
-    getMu <- function(x, y) {
-      return(mean(rnorm(n = 10, mean = x[1]+x[2]*y, sd = x[3])))
-    }
-
-    getPr <- function(x, y) {
-      1/(1 + exp(-(x[1]+x[2]*y)))
-      return(mean(rbinom(n = 10, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))))
-    }
-
-
-    strain.summary <- c()
-    snp.summary <- c()
+    ppc.summary <- c()
 
     # Q-trait
     for(t in 1:gt.data$Ntq) {
       alpha.p <- paste("alpha", t, sep = '.')
 
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        beta.p <- paste("beta", t, s, k, sep = '.')
-        sigma.p <- paste("sigma", k, sep = '.')
-        # TODO: check this in case single Ntq => sigma no index
+      # individual level
+      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+      for(i in 1:gt.data$N) {
+        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
+        sigma.p <- paste("sigma", gt.data$K[i], sep = '.')
+        # TODO: check in case single Ntq => sigma no index
         if(gt.data$Nk == 1) {
-          sigma.p <- "sigma"
           beta.p <- paste("beta", t, s, sep = '.')
+          sigma.p <- "sigma"
         }
 
-        yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1, FUN = getMu,
-                      y = unique(gt.data$X[gt.data$K == k, s]))
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-        row <- data.frame(t = t, s = s, k = k, x = unique(gt.data$X[gt.data$K == k, s]),
-                          y = mean(gt.data$Yq[gt.data$K == k, t]), yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1], yhat.H = yhat.hdi[2], level = "strain")
-        strain.summary <- rbind(strain.summary, row)
+        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
+                           FUN = getMu, y = gt.data$X[i, s])
       }
-      # clean up
-      rm(k, beta.p, yhat, yhat.hdi, row)
 
+      # strain level
+      for(k in 1:gt.data$Nk) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
+                          y.real = mean(gt.data$Yq[gt.data$K == k, t]),
+                          y.ppc = mean(yhat[, gt.data$K == k]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
 
       # snp level
-      beta.p <- paste("mu_beta", t, s, sep = '.')
-      yhat.1 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getSnpMu, y = 1)
-      yhat.hdi.1 <- getHdi(vec = yhat.1, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = 1,
-                        y = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                        yhat = mean(yhat.1), yhat.L = yhat.hdi.1[1],
-                        yhat.H = yhat.hdi.1[2], level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-      yhat.0 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getSnpMu, y = -1)
-      yhat.hdi.0 <- getHdi(vec = yhat.0, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = -1,
-                        y = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                        yhat = mean(yhat.0), yhat.L = yhat.hdi.0[1],
-                        yhat.H = yhat.hdi.0[2], level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-
-      # clean up
-      rm(beta.p, yhat.1, yhat.hdi.1, row, yhat.0, yhat.hdi.0)
+      if(sum(gt.data$X[, s] == 1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
+                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
+      # snp level
+      if(sum(gt.data$X[, s] == -1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
+                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
     }
+    # clean up
+    rm(k, yhat, yhat.hdi, row)
 
 
     # D-trait
@@ -792,61 +715,59 @@ getPpcQD <- function(ext, gt.data, model, s, hdi.level) {
 
       alpha.p <- paste("alpha", t, sep = '.')
 
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        beta.p <- paste("beta", t, s, k, sep = '.')
-        # TODO: check this in case single Ntq => sigma no index
+      # individual level
+      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+      for(i in 1:gt.data$N) {
+        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
+        # TODO: check in case single Ntq => sigma no index
         if(gt.data$Nk == 1) {
           beta.p <- paste("beta", t, s, sep = '.')
         }
 
-        yhat <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1, FUN = getPr,
-                      y = unique(gt.data$X[gt.data$K == k, s]))
-        yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-        row <- data.frame(t = t, s = s, k = k,
-                          x = unique(gt.data$X[gt.data$K == k, s]),
-                          y = mean(as.numeric(gt.data$Yd[gt.data$K == k, d])),
-                          yhat = mean(yhat),
-                          yhat.L = yhat.hdi[1],
-                          yhat.H = yhat.hdi[2],
-                          level = "strain")
-        strain.summary <- rbind(strain.summary, row)
+        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
+                           FUN = getPr, y = gt.data$X[i, s])
       }
-      # clean up
-      rm(k, beta.p, yhat, yhat.hdi, row)
 
+      # strain level
+      for(k in 1:gt.data$Nk) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
+                          y.real=mean(as.numeric(gt.data$Yq[gt.data$K == k,d])),
+                          y.ppc = mean(yhat[, gt.data$K == k]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
 
       # snp level
-      beta.p <- paste("mu_beta", t, s, sep = '.')
-      yhat.1 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getSnpMu, y = 1)
-      yhat.hdi.1 <- getHdi(vec = yhat.1, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = 1,
-                        y=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1, d])),
-                        yhat = mean(yhat.1), yhat.L = yhat.hdi.1[1],
-                        yhat.H = yhat.hdi.1[2], level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-      yhat.0 <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                      FUN = getSnpMu, y = -1)
-      yhat.hdi.0 <- getHdi(vec = yhat.0, hdi.level = hdi.level)
-      row <- data.frame(t = t, s = s, k = NA, x = -1,
-                        y=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == -1, d])),
-                        yhat = mean(yhat.0), yhat.L = yhat.hdi.0[1],
-                        yhat.H = yhat.hdi.0[2], level = "snp")
-      snp.summary <- rbind(snp.summary, row)
-
-
-      # clean up
-      rm(beta.p, yhat.1, yhat.hdi.1,
-         row, yhat.0, yhat.hdi.0)
+      if(sum(gt.data$X[, s] == 1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
+                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1,d])),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
+      # snp level
+      if(sum(gt.data$X[, s] == -1) != 0) {
+        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
+                           hdi.level = hdi.level)
+        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
+                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == -1,d])),
+                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+      }
     }
+    # clean up
+    rm(k, yhat, yhat.hdi, row)
 
-
-    return (list(snp.summary = snp.summary,
-                 strain.summary = strain.summary))
+    return (ppc.summary)
   }
-
 
   if(model == "M0") {
     return(getPpcM0QD(gt.data = gt.data, p = ext,

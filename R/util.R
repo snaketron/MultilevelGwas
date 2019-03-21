@@ -65,7 +65,8 @@ getStanData <- function(genotype,
     getX <- function(x) {
       xs <- unique(x)
       X <- numeric(length = length(x))
-      xs.dir <- c(1, -1)
+      xs.dir <- sample(x = c(1, -1), size = 2, replace = FALSE)
+      # xs.dir <- c(1, -1)
 
       # map genotypes to 1s and -1s
       for(i in 1:length(xs)) {
@@ -76,8 +77,8 @@ getStanData <- function(genotype,
 
       # xmap
       xmap <- data.frame(ref = xs[1], alt = xs[2],
-                         refN = sum(X == 1),
-                         altN = sum(X == -1))
+                         refN = sum(X == xs[1]),
+                         altN = sum(X == xs[2]))
 
       # return
       return(list(X = X, xmap = xmap))
@@ -317,21 +318,40 @@ getStanModel <- function(model.name, comparison.mode) {
 
 # Function:
 # Given model.name, fetch appropriate stan model
-getStanModelDebug <- function(model.name) {
-  # M0
-  if(model.name == "M0") {
-    stan.model <- rstan::stan_model(file = "src/stan_files/M0_loglik.stan")
+getStanModelDebug <- function(model.name, comparison = TRUE) {
+  if(comparison) {
+    # M0
+    if(model.name == "M0") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/M0_loglik.stan")
+    }
+
+    # M1
+    if(model.name == "M1") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/M1_loglik.stan")
+    }
+
+    # M2
+    if(model.name == "M2") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/M2_loglik.stan")
+    }
+  }
+  else {
+    # M0
+    if(model.name == "M0") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/M0.stan")
+    }
+
+    # M1
+    if(model.name == "M1") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/M1.stan")
+    }
+
+    # M2
+    if(model.name == "M2") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/M2.stan")
+    }
   }
 
-  # M1
-  if(model.name == "M1") {
-    stan.model <- rstan::stan_model(file = "src/stan_files/M1_loglik.stan")
-  }
-
-  # M2
-  if(model.name == "M2") {
-    stan.model <- rstan::stan_model(file = "src/stan_files/M2_loglik.stan")
-  }
 
   return (stan.model)
 }
