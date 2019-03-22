@@ -119,6 +119,11 @@ getPpc <- function(ps, gt.data, models,
   names(ppc.list) <- names(ps)
 
 
+  # register multicore ppc
+  # cl <- parallel::makeCluster(cores)
+  # doParallel::registerDoParallel(cl)
+
+
   for(i in 1:length(models)) {
     # get posterior
     ext <- data.frame(rstan::extract(object = ps[[i]]))
@@ -129,47 +134,42 @@ getPpc <- function(ps, gt.data, models,
                       replace = TRUE), ]
 
 
+    ppc.out <- c()
+    for(s in 1:gt.data$Ns) {
+      if(gt.data$Ntq > 0 & gt.data$Ntd > 0) {
+        ppc.out <- rbind(ppc.out, getPpcQD(ext = ext,
+                                           gt.data = gt.data,
+                                           model = models[i],
+                                           hdi.level = hdi.level,
+                                           s = s))
+      }
+      else if(gt.data$Ntq > 0 & gt.data$Ntd == 0) {
+        ppc.out <- rbind(ppc.out, getPpcQ(ext = ext,
+                                          gt.data = gt.data,
+                                          model = models[i],
+                                          hdi.level = hdi.level,
+                                          s = s))
+      }
+      else if(gt.data$Ntq == 0 & gt.data$Ntd > 0) {
+        ppc.out <- rbind(ppc.out, getPpcD(ext = ext,
+                                          gt.data = gt.data,
+                                          model = models[i],
+                                          hdi.level = hdi.level,
+                                          s = s))
+      }
 
-    # register multicore ppc
-    cl <- parallel::makeCluster(cores)
-    doParallel::registerDoParallel(cl)
+      # progress
+      if(s %% 10 == 0) {
+        cat(s, "/", gt.data$Ns, ", ", sep = '')
+      }
 
-
-    if(gt.data$Ntq > 0 & gt.data$Ntd > 0) {
-      ppc.list[[i]] <- (foreach(s = 1:gt.data$Ns,
-                                .export = c("getHdi", "getPpcQD")) %dopar%
-                          getPpcQD(ext = ext,
-                                   gt.data = gt.data,
-                                   model = models[i],
-                                   hdi.level = hdi.level,
-                                   s = s))
     }
-    else if(gt.data$Ntq > 0 & gt.data$Ntd == 0) {
-      ppc.list[[i]] <- (foreach(s = 1:gt.data$Ns,
-                                .export = c("getHdi", "getPpcQ")) %dopar%
-                          getPpcQ(ext = ext,
-                                  gt.data = gt.data,
-                                  model = models[i],
-                                  hdi.level = hdi.level,
-                                  s = s))
-    }
-    else if(gt.data$Ntq == 0 & gt.data$Ntd > 0) {
-      ppc.list[[i]] <- (foreach(s = 1:gt.data$Ns,
-                                .export = c("getHdi", "getPpcD")) %dopar%
-                          getPpcD(ext = ext,
-                                  gt.data = gt.data,
-                                  model = models[i],
-                                  hdi.level = hdi.level,
-                                  s = s))
-    }
-
-    # release cluster
-    parallel::stopCluster(cl = cl)
-    doParallel::stopImplicitCluster()
+    ppc.list[[i]] <- ppc.out
   }
 
-
-
+  # release cluster
+  # parallel::stopCluster(cl = cl)
+  # doParallel::stopImplicitCluster()
 
   return (ppc.list)
 }

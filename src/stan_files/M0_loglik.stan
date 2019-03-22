@@ -51,20 +51,25 @@ model {
 }
 
 generated quantities {
-  matrix [N, Ns] log_lik [Ntq+Ntd];
+  matrix [N, Ns] log_lik2 [Ntq+Ntd];
+  matrix [N, Ntq+Ntd] log_lik;
 
   for(i in 1:N) {
     for(s in 1:Ns) {
       if(Ntq > 0) {
         for(t in 1:Ntq) {
-          log_lik[t][i,s] = normal_lpdf(Yq[i,t] | alpha[t]+X[i][s]*beta[t, s], sigma[t]);
+          log_lik2[t][i,s] = normal_lpdf(Yq[i,t] | alpha[t]+X[i][s]*beta[t, s], sigma[t]);
         }
       }
       if(Ntd > 0) {
         for(d in 1:Ntd) {
-          log_lik[Ntq+d][i,s] = bernoulli_logit_lpmf(Yd[i, d] | alpha[Ntq+d]+X[i][s]*beta[Ntq+d, s]);
+          log_lik2[Ntq+d][i,s] = bernoulli_logit_lpmf(Yd[i, d] | alpha[Ntq+d]+X[i][s]*beta[Ntq+d, s]);
         }
       }
+    }
+
+    for(t in 1:(Ntq+Ntd)) {
+      log_lik[i, t] = mean(log_lik2[t][i, ]);
     }
   }
 }

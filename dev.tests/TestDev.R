@@ -14,73 +14,51 @@ require(Biostrings)
 
 
 # homozygous strains
-genotype <- cbind(rep(x = c("A", "C"), each = 40),
+N <- 7
+
+genotype <- cbind(rep(x = c("A", "C"), each = N*10/2),
                   replicate(n = 19, rep(x = sample(x = c("A", "C"),
-                            size = 16, replace = T), each = 5)))
+                            size = 10, replace = T), each = N)))
 
-# mixture within strains
-# genotype <- cbind(c(sample(x = c("A", "C"), size = 40, prob = c(0, 1), replace = T),
-#                     sample(x = c("A", "C"), size = 40, prob = c(1, 0), replace = T)),
-#                   c(sample(x = c("H", "C"), size = 40, prob = c(0.15, 0.85), replace = T),
-#                     sample(x = c("H", "C"), size = 40, prob = c(0.85, 0.15), replace = T)),
-#                   c(sample(x = c("J", "G"), size = 40, prob = c(0.15, 0.85), replace = T),
-#                     sample(x = c("J", "G"), size = 40, prob = c(0.85, 0.15), replace = T)),
-#                   replicate(n = 12, expr = sample(x = sample(x = LETTERS,
-#                             size = 2, replace = F), size = 80, replace = T)))
 
-trait.1 <- c(rnorm(n = 5, mean = -2.5, sd = 0.5),
-             rnorm(n = 5, mean = -2, sd = 0.5),
-             rnorm(n = 5, mean = -1, sd = 0.4),
-             rnorm(n = 5, mean = 0, sd = 0.5),
-             rnorm(n = 5, mean = 0, sd = 0.2),
-             rnorm(n = 5, mean = 0.1, sd = 0.3),
-             rnorm(n = 5, mean = 0.2, sd = 0.3),
-             rnorm(n = 5, mean = 0.25, sd = 0.2), #8
-             rnorm(n = 5, mean = 0.9, sd = 0.1),
-             rnorm(n = 5, mean = 1, sd = 0.2),
-             rnorm(n = 5, mean = 1.1, sd = 0.2),
-             rnorm(n = 5, mean = 1.25, sd = 0.3),
-             rnorm(n = 5, mean = 0.9, sd = 0.2),
-             rnorm(n = 5, mean = 2, sd = 0.3),
-             rnorm(n = 5, mean = 2, sd = 0.4),
-             rnorm(n = 5, mean = 3, sd = 0.5))
+sigmas.k <- c(0.3, 0.4, 0.5, 0.4, 0.5,
+              0.3, 0.4, 0.5, 0.4, 0.8)
 
-trait.2 <- c(rnorm(n = 5, mean = -1, sd = 0.3),
-             rnorm(n = 5, mean = -2, sd = 0.2),
-             rnorm(n = 5, mean = -0.5, sd = 0.2),
-             rnorm(n = 5, mean = 0, sd = 0.2),
-             rnorm(n = 5, mean = 0, sd = 0.1),
-             rnorm(n = 5, mean = 0.1, sd = 0.2),
-             rnorm(n = 5, mean = 0.2, sd = 0.1),
-             rnorm(n = 5, mean = 0.25, sd = 0.2), #8
-             rnorm(n = 5, mean = 0.9, sd = 0.1),
-             rnorm(n = 5, mean = 1, sd = 0.2),
-             rnorm(n = 5, mean = 1.1, sd = 0.2),
-             rnorm(n = 5, mean = 1.25, sd = 0.2),
-             rnorm(n = 5, mean = 0.9, sd = 0.3),
-             rnorm(n = 5, mean = 1, sd = 0.2),
-             rnorm(n = 5, mean = 2, sd = 0.5),
-             rnorm(n = 5, mean = 3, sd = 0.5))
+trait.1 <- c(rnorm(n = N, mean = -1.5, sd = sigmas.k[1]),
+             rnorm(n = N, mean = -2, sd = sigmas.k[2]),
+             rnorm(n = N, mean = -1, sd = sigmas.k[3]),
+             rnorm(n = N, mean = 0.2, sd = sigmas.k[4]),
+             rnorm(n = N, mean = 0.25, sd = sigmas.k[5]), #5
+             rnorm(n = N, mean = 1.1, sd = sigmas.k[6]),
+             rnorm(n = N, mean = 1.25, sd = sigmas.k[7]),
+             rnorm(n = N, mean = 1.5, sd = sigmas.k[8]),
+             rnorm(n = N, mean = 2, sd = sigmas.k[9]),
+             rnorm(n = N, mean = 2, sd = sigmas.k[10]))
 
-trait.3 <- c(rbinom(n = 5, size = 1, prob = 0.01),
-             rbinom(n = 5, size = 1, prob = 0.01),
-             rbinom(n = 5, size = 1, prob = 0.2),
-             rbinom(n = 5, size = 1, prob = 0.3),
-             rbinom(n = 5, size = 1, prob = 0.2),
-             rbinom(n = 5, size = 1, prob = 0.3),
-             rbinom(n = 5, size = 1, prob = 0.2),
-             rbinom(n = 5, size = 1, prob = 0.3),
-             rbinom(n = 5, size = 1, prob = 0.65),
-             rbinom(n = 5, size = 1, prob = 0.7),
-             rbinom(n = 5, size = 1, prob = 0.75),
-             rbinom(n = 5, size = 1, prob = 0.8),
-             rbinom(n = 5, size = 1, prob = 0.65),
-             rbinom(n = 5, size = 1, prob = 0.7),
-             rbinom(n = 5, size = 1, prob = 0.75),
-             rbinom(n = 5, size = 1, prob = 0.8))
+trait.2 <- c(rnorm(n = N, mean = -1.5, sd = sigmas.k[1]),
+             rnorm(n = N, mean = -1, sd = sigmas.k[2]),
+             rnorm(n = N, mean = -0.75, sd = sigmas.k[3]),
+             rnorm(n = N, mean = 0.2, sd = sigmas.k[4]),
+             rnorm(n = N, mean = 0.25, sd = sigmas.k[5]), #5
+             rnorm(n = N, mean = 1.1, sd = sigmas.k[6]),
+             rnorm(n = N, mean = 1.25, sd = sigmas.k[7]),
+             rnorm(n = N, mean = 1.2, sd = sigmas.k[8]),
+             rnorm(n = N, mean = 2, sd = sigmas.k[9]),
+             rnorm(n = N, mean = 2, sd = sigmas.k[10]))
+
+trait.3 <- c(rbinom(n = N, size = 1, prob = 0.05),
+             rbinom(n = N, size = 1, prob = 0.2),
+             rbinom(n = N, size = 1, prob = 0.3),
+             rbinom(n = N, size = 1, prob = 0.2),
+             rbinom(n = N, size = 1, prob = 0.3), #5
+             rbinom(n = N, size = 1, prob = 0.65),
+             rbinom(n = N, size = 1, prob = 0.7),
+             rbinom(n = N, size = 1, prob = 0.75),
+             rbinom(n = N, size = 1, prob = 0.75),
+             rbinom(n = N, size = 1, prob = 0.8))
 
 traits <- cbind(trait.1, trait.2, trait.3)
-strains <- rep(x = 1:16, each = 5)
+strains <- rep(x = 1:10, each = N)
 rm(trait.1, trait.2, trait.3)
 
 plot(x = strains, y = traits[, 1],
@@ -115,11 +93,10 @@ mc <- runModelComparison(genotype = genotype,
                          strains = strains,
                          models = c("M0", "M1", "M2"),
                          mcmc.chains = 4,
-                         mcmc.steps = 1500,
-                         mcmc.warmup = 500,
+                         mcmc.steps = 2500,
+                         mcmc.warmup = 1000,
                          cores = 4,
-                         hdi.level = 0.95)
-
+                         hdi.level = 0.999)
 
 
 
