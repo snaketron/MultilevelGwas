@@ -35,7 +35,6 @@ mc <- runModelComparison(genotype = genotype,
                          hdi.level = 0.95,
                          adapt_delta = 0.99)
 
-save(mc, file = "dev.tests/mc.tnf.RData")
 
 
 
