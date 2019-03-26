@@ -62,7 +62,8 @@ runModelComparison <- function(genotype,
                                     mcmc.warmup = mcmc.warmup,
                                     cores = cores,
                                     stan.model = stan.model,
-                                    dot.param = dot.param)
+                                    dot.param = dot.param,
+                                    comparison = TRUE)
   }
 
 
@@ -113,8 +114,6 @@ getPpc <- function(ps, gt.data, models,
                    hdi.level, cores) {
 
 
-
-
   ppc.list <- vector(mode = "list", length = length(ps))
   names(ppc.list) <- names(ps)
 
@@ -159,8 +158,8 @@ getPpc <- function(ps, gt.data, models,
       }
 
       # progress
-      if(s %% 10 == 0) {
-        cat(s, "/", gt.data$Ns, ", ", sep = '')
+      if(s %% 5 == 0) {
+        cat(models[i], ":", s, "/", gt.data$Ns, "\n", sep = '')
       }
 
     }

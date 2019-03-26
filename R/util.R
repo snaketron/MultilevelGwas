@@ -359,6 +359,78 @@ getStanModelDebug <- function(model.name, comparison = TRUE) {
 
 
 
+getStanModelPars <- function(model.name, comparison = TRUE) {
+  if(comparison) {
+    # M0
+    if(model.name == "M0") {
+      pars <- c("alpha", "beta", "sigma",
+                "mu_beta", "sigma_beta",
+                "log_lik")
+    }
+    if(model.name == "M0c") {
+      pars <- c("alpha", "beta", "sigma",
+                "mu_beta", "sigma_beta",
+                "log_lik", "rho")
+    }
+
+    # M1
+    if(model.name == "M1") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
+                "sigma_beta", "grand_sigma_beta", "log_lik")
+    }
+    if(model.name == "M1c") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
+                "sigma_beta", "grand_sigma_beta", "rho", "log_lik")
+    }
+
+    # M2
+    if(model.name == "M2") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
+                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
+                "grand_sigma_beta", "log_lik")
+    }
+    if(model.name == "M2c") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
+                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
+                "grand_sigma_beta", "log_lik", "rho")
+    }
+  }
+  else {
+    # M0
+    if(model.name == "M0") {
+      pars <- c("alpha", "beta", "sigma", "mu_beta", "sigma_beta")
+    }
+    if(model.name == "M0c") {
+      pars <- c("alpha", "beta", "sigma", "mu_beta", "sigma_beta", "rho")
+    }
+
+    # M1
+    if(model.name == "M1") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
+                "sigma_beta", "grand_sigma_beta")
+    }
+    if(model.name == "M1c") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
+                "sigma_beta", "grand_sigma_beta", "rho")
+    }
+
+    # M2
+    if(model.name == "M2") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
+                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
+                "grand_sigma_beta")
+    }
+    if(model.name == "M2c") {
+      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
+                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
+                "grand_sigma_beta", "rho")
+    }
+  }
+
+  return (pars)
+}
+
+
 
 
 # Function:

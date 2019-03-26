@@ -1,23 +1,11 @@
-getStrain <- function(x) {
-  return (x$strain.summary)
-}
-getSnp <- function(x) {
-  return (x$snp.summary)
-}
 
 # check loo.ic
 mc$loo.ic
 
-
-# ppc
-m0.ppc <- do.call(rbind, mc$ppc$M0)
-m0.ppc$model <- "M0"
-m1.ppc <- do.call(rbind, mc$ppc$M1)
-m1.ppc$model <- "M1"
-m2.ppc <- do.call(rbind, mc$ppc$M2)
-m2.ppc$model <- "M2"
-
-ppc <- rbind(m0.ppc, m1.ppc, m2.ppc)
+mc$ppc$M0$model <- "M0"
+mc$ppc$M1$model <- "M1"
+mc$ppc$M2$model <- "M2"
+ppc <- rbind(mc$ppc$M0, mc$ppc$M1, mc$ppc$M2)
 
 ggplot(data = ppc[ppc$level == "snp", ])+
   facet_grid(facets = model~t)+

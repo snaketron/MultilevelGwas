@@ -8,7 +8,8 @@ runBayesianInference <- function(gt.data,
                                  mcmc.warmup,
                                  cores,
                                  stan.model,
-                                 dot.param) {
+                                 dot.param,
+                                 comparison) {
 
   # extra conversion
   Yd <- c()
@@ -37,10 +38,17 @@ runBayesianInference <- function(gt.data,
                   max_treedepth = dot.param$max_treedepth)
 
   # create names for sample files to use if sample.file is specified
+  stan.model@model_name <- gsub(pattern = "\\_loglik", replacement = '',
+                                x = stan.model@model_name)
+
   sample.file <- NULL
   if(dot.param$with.sample.file == TRUE) {
-    sample.file <- paste(stan.model$model_name, "posterior", sep = '.')
+    sample.file <- paste(stan.model@model_name, "posterior", sep = '.')
   }
+
+  # get appropriate parameters to monitor
+  pars <- getStanModelPars(model.name = stan.model@model_name,
+                           comparison = comparison)
 
   # run
   posterior <- rstan::sampling(object = stan.model,
@@ -52,7 +60,9 @@ runBayesianInference <- function(gt.data,
                                control = control,
                                verbose = dot.param$verbose,
                                refresh = dot.param$refresh,
-                               sample_file = sample.file)
+                               sample_file = sample.file,
+                               pars = pars)
+
 
   # collect results from csv files if sample.file is specified
   if(dot.param$with.sample.file == TRUE) {
