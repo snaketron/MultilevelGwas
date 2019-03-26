@@ -73,8 +73,8 @@ runModelComparison <- function(genotype,
 
 
 
-  cat("3) Posterior prediction ... \n")
   # compute PPC
+  cat("3) Posterior prediction ... \n")
   ppc <- getPpc(ps = ps,
                 gt.data = gt.data,
                 models = models,
@@ -98,8 +98,8 @@ getLooIC <- function(ps) {
 
   for(i in 1:length(ps)) {
     # no need to declare loo at all
-    # loo.list[[i]] <- loo::loo(loo::extract_log_lik(stanfit = ps[[i]]))
-    loo.list[[i]] <- rstan::loo(ps[[i]], pars = "log_lik")
+    loo.list[[i]] <- loo::loo(loo::extract_log_lik(stanfit = ps[[i]]))
+    # loo.list[[i]] <- rstan::loo(ps[[i]], pars = "log_lik")
   }
 
   return(loo.list)
@@ -129,7 +129,7 @@ getPpc <- function(ps, gt.data, models,
     ext <- ext[, regexpr(pattern = "z\\.|log_lik",
                          text = colnames(ext)) == -1]
     ext <- ext[sample(x = 1:nrow(ext),
-                      size = max(c(500, nrow(ext))),
+                      size = min(c(500, nrow(ext))),
                       replace = TRUE), ]
 
 

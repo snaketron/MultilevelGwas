@@ -20,3 +20,4 @@ ggplot(data = ppc[ppc$level == "strain", ])+
   geom_point(aes(y = y.ppc, x = y.real))+
   geom_abline(slope = 1, intercept = 0)+
   theme_bw()
+
