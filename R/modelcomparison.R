@@ -69,7 +69,7 @@ runModelComparison <- function(genotype,
 
   # compute LOOIC
   cat("2) Computing LOOIC ... \n")
-  loo.ic <- getLooIC(ps = ps)
+  ic <- getIC(ps = ps)
 
 
 
@@ -78,12 +78,11 @@ runModelComparison <- function(genotype,
   ppc <- getPpc(ps = ps,
                 gt.data = gt.data,
                 models = models,
-                hdi.level = hdi.level,
-                cores = cores)
+                hdi.level = hdi.level)
 
 
   return (list(ps = ps,
-               loo.ic = loo.ic,
+               ic = ic,
                ppc = ppc,
                gt.data = gt.data))
 }
@@ -91,18 +90,24 @@ runModelComparison <- function(genotype,
 
 
 # loo information criterion
-getLooIC <- function(ps) {
+getIC <- function(ps) {
 
+  # loo and waic
   loo.list <- vector(mode = "list", length = length(ps))
+  waic.list <- vector(mode = "list", length = length(ps))
   names(loo.list) <- names(ps)
+  names(waic.list) <- names(ps)
 
   for(i in 1:length(ps)) {
     # no need to declare loo at all
-    loo.list[[i]] <- loo::loo(loo::extract_log_lik(stanfit = ps[[i]]))
+    loo.list[[i]] <- loo::loo(x = loo::extract_log_lik(stanfit = ps[[i]]))
+    waic.list[[i]] <- loo::waic(x = loo::extract_log_lik(stanfit = ps[[i]]))
+
     # loo.list[[i]] <- rstan::loo(ps[[i]], pars = "log_lik")
   }
 
-  return(loo.list)
+  return(list(loo = loo.list,
+              waic = waic.list))
 }
 
 
@@ -110,17 +115,14 @@ getLooIC <- function(ps) {
 
 # Function:
 # Posterior prediction
-getPpc <- function(ps, gt.data, models,
-                   hdi.level, cores) {
+getPpc <- function(ps,
+                   gt.data,
+                   models,
+                   hdi.level) {
 
 
   ppc.list <- vector(mode = "list", length = length(ps))
   names(ppc.list) <- names(ps)
-
-
-  # register multicore ppc
-  # cl <- parallel::makeCluster(cores)
-  # doParallel::registerDoParallel(cl)
 
 
   for(i in 1:length(models)) {
@@ -135,6 +137,7 @@ getPpc <- function(ps, gt.data, models,
 
     ppc.out <- c()
     for(s in 1:gt.data$Ns) {
+
       if(gt.data$Ntq > 0 & gt.data$Ntd > 0) {
         ppc.out <- rbind(ppc.out, getPpcQD(ext = ext,
                                            gt.data = gt.data,
