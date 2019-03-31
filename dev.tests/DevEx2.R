@@ -23,9 +23,9 @@ genotype <- cbind(rep(x = c("A", "C"), each = N*K/2),
 unique(apply(X = genotype, MARGIN = 2, FUN = base::paste, collapse = ''))
 
 
-rho.12 <- rnorm(n = K, mean = 0.75, sd = 0.50)
-rho.13 <- rnorm(n = K, mean = 0.66, sd = 0.50)
-rho.14 <- rnorm(n = K, mean = 0.85, sd = 0.50)
+rho.12 <- rnorm(n = K, mean = 1, sd = 0.1)
+rho.13 <- rnorm(n = K, mean = 1, sd = 0.1)
+rho.14 <- rnorm(n = K, mean = 1, sd = 0.1)
 rho.12 <- sapply(X = rho.12, FUN = getMax <- function(x) {min(x, 1)})
 rho.13 <- sapply(X = rho.13, FUN = getMax <- function(x) {min(x, 1)})
 rho.14 <- sapply(X = rho.14, FUN = getMax <- function(x) {min(x, 1)})
@@ -100,7 +100,7 @@ mc <- runModelComparison(genotype = genotype,
                          adapt_delta = 0.99,
                          max_treedepth = 12)
 
-save(mc, file = "dev.tests/dev.ex1.RData")
+save(mc, file = "dev.tests/dev.ex2.RData")
 
 
 
@@ -110,6 +110,7 @@ mc <- get(load(file = "dev.tests/dev.ex1.RData"))
 mc$ic$loo
 mc$ic$waic
 
+mc$ppc <- x
 
 
 mc$ppc$M0$model <- "M0"
@@ -118,10 +119,19 @@ mc$ppc$M2$model <- "M2"
 mc$ppc$M0c$model <- "M0c"
 mc$ppc$M1c$model <- "M1c"
 mc$ppc$M2c$model <- "M2c"
+
+
 ppc <- rbind(mc$ppc$M0, mc$ppc$M1, mc$ppc$M2,
              mc$ppc$M0c, mc$ppc$M1c, mc$ppc$M2c)
 
 ggplot(ppc[ppc$level == "snp", ])+
+  facet_grid(facets = t~model)+
+  geom_errorbar(aes(x = s, ymin = error.L, ymax = error.H), col = "black")+
+  geom_point(aes(x = s, y = error), shape = 21,
+             fill = "white", col = "black")+
+  theme_bw()
+
+ggplot(ppc[ppc$level == "snp_beta", ])+
   facet_grid(facets = t~model)+
   geom_errorbar(aes(x = s, ymin = error.L, ymax = error.H), col = "black")+
   geom_point(aes(x = s, y = error), shape = 21,
@@ -136,10 +146,14 @@ ggplot(ppc[ppc$level == "strain" & ppc$s == 1, ])+
   theme_bw()
 
 
-aggregate(error~model+t, data = ppc, FUN = mean)
+aggregate(error~model+t+level, data = ppc, FUN = mean)
+aggregate(error~model+level, data = ppc, FUN = mean)
+
+
 x <- data.frame(extract(object = mc$ps$M2,
                 pars = c("alpha", "beta", "mu_beta")))
 hist(x$mu_beta.1.1, breaks = 100)
 hist(x$mu_beta.4.1, breaks = 100)
 hist(x$mu_beta.1.25, breaks = 100)
 
+summary(mc$ps$M0c, pars = "rho")$summary

@@ -986,3 +986,73 @@ getPpcD <- function(ext, gt.data, model, s, hdi.level) {
   }
 }
 
+
+
+getPpcSnpBeta <- function(p, gt.data, s, hdi.level, model) {
+
+  getMuSnp <- function(x, y, isD) {
+    m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+    if(isD == TRUE) {
+      m <- 1/(1 + exp(m))
+    }
+    return(m)
+  }
+
+
+  ppc.summary <- c()
+
+  for(t in 1:(gt.data$Ntq+gt.data$Ntd)) {
+    # index of D-trait
+    d <- sum(gt.data$trait.type[1:t] == "D")
+
+    # individual level
+    yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+    errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+
+    # select posteriors
+    alpha.p <- paste("alpha", t, sep = '.')
+    beta.p <- paste("mu_beta", t, s, sep = '.')
+    sigma.p <- paste("sigma_beta", t, sep = '.')
+
+    # browser()
+
+    # compute for design var X = 1 and X = -1
+    for(x in c(1, -1)) {
+      if(gt.data$trait.type[t] == "Q") {
+        yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
+                      FUN = getMuSnp, y = x, isD = FALSE)
+        errors <- abs(mean(gt.data$Yq[gt.data$X[, s] == x, t]) - yhat)
+        y.real = mean(gt.data$Yq[gt.data$X[, s] == x, t])
+      }
+      if(gt.data$trait.type[t] == "D") {
+        yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
+                      FUN = getMuSnp, y = x, isD = TRUE)
+        errors <- abs(mean(gt.data$Yd[gt.data$X[, s] == x, d]) - yhat)
+        y.real = mean(gt.data$Yd[gt.data$X[, s] == x, d])
+      }
+
+
+      # hdi's
+      yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
+      errors.hdi <- getHdi(vec = errors, hdi.level = hdi.level)
+
+
+      row <- data.frame(t = t, s = s, k = NA, x = x,
+                        level = "snp_beta",
+                        y.real = y.real,
+                        y.ppc = mean(yhat),
+                        y.ppc.L = yhat.hdi[1],
+                        y.ppc.H = yhat.hdi[2],
+                        error = mean(errors),
+                        error.L = errors.hdi[1],
+                        error.H = errors.hdi[2])
+      ppc.summary <- rbind(ppc.summary, row)
+    }
+
+    # cleanup
+    rm(row, yhat.hdi, errors.hdi, x,
+       y.real, alpha.p, beta.p, d)
+  }
+
+  return (ppc.summary)
+}

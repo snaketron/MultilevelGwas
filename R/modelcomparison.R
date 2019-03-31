@@ -160,6 +160,12 @@ getPpc <- function(ps,
                                           s = s))
       }
 
+      if(models[i] != "M0" & models[i] != "M0c") {
+        ppc.out <- rbind(ppc.out, getPpcSnpBeta(p = ext, gt.data = gt.data,
+                                                s = s, hdi.level = hdi.level))
+
+      }
+
       # progress
       if(s %% 5 == 0) {
         cat(models[i], ":", s, "/", gt.data$Ns, "\n", sep = '')
