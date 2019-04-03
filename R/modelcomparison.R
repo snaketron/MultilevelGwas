@@ -75,15 +75,19 @@ runModelComparison <- function(genotype,
 
   # compute PPC
   cat("3) Posterior prediction ... \n")
-  ppc <- getPpc(ps = ps,
-                gt.data = gt.data,
-                models = models,
-                hdi.level = hdi.level)
+  # ppc <- getPpc(ps = ps,
+  #               gt.data = gt.data,
+  #               models = models,
+  #               hdi.level = hdi.level)
+  # ppc <- getPpcMc(ps = ps,
+  #                 gt.data = gt.data,
+  #                 models = models,
+  #                 hdi.level = hdi.level)
 
 
   return (list(ps = ps,
                ic = ic,
-               ppc = ppc,
+               ppc = NA,
                gt.data = gt.data))
 }
 
@@ -102,14 +106,90 @@ getIC <- function(ps) {
     # no need to declare loo at all
     loo.list[[i]] <- loo::loo(x = loo::extract_log_lik(stanfit = ps[[i]]))
     waic.list[[i]] <- loo::waic(x = loo::extract_log_lik(stanfit = ps[[i]]))
-
-    # loo.list[[i]] <- rstan::loo(ps[[i]], pars = "log_lik")
   }
 
   return(list(loo = loo.list,
               waic = waic.list))
 }
 
+
+
+
+# Function:
+# Posterior prediction multicore
+
+# Function:
+# Posterior prediction
+getPpcMc <- function(ps,
+                   gt.data,
+                   models,
+                   hdi.level,
+                   cores = 6) {
+
+
+  # multicore classification
+  cl <- parallel::makeCluster(cores)
+  doParallel::registerDoParallel(cl)
+
+
+  runPpc <- function(p, gt.data,
+                     model, hdi.level) {
+
+    # get posterior
+    ext <- data.frame(rstan::extract(object = p))
+    ext <- ext[, regexpr(pattern = "z\\.|log_lik",
+                         text = colnames(ext)) == -1]
+    ext <- ext[sample(x = 1:nrow(ext),
+                      size = min(c(500, nrow(ext))),
+                      replace = TRUE), ]
+
+
+
+    ppc.out <- c()
+    for(s in 1:gt.data$Ns) {
+      o <- getPpcLowestLevel(ext = ext,
+                             gt.data = gt.data,
+                             model = model,
+                             hdi.level = hdi.level,
+                             s = s)
+      ppc.out <- rbind(ppc.out, o)
+
+      if(!models[i] %in% c("M0", "M0c")) {
+        u <- getPpcMidLevel(ext = ext,
+                            gt.data = gt.data,
+                            model = model,
+                            hdi.level = hdi.level,
+                            s = s)
+        ppc.out <- rbind(ppc.out, u)
+      }
+
+
+
+      # progress
+      if(s %% 5 == 0) {
+        cat(model, ":", s, "/", gt.data$Ns, "\n", sep = '')
+      }
+    }
+    # set model
+    ppc.out$model <- model
+    return (ppc.out)
+  }
+
+
+  for(i in 1:length(models)) {
+    ppc.list <- (foreach(i = 1:length(ps),
+                         .export = c("getHdi",
+                                     "getPpcLowestLevel",
+                                     "getPpcMidLevel")) %dopar%
+                   runPpc(p = ps[[i]],
+                          gt.data = gt.data,
+                          model= models[i],
+                          hdi.level = hdi.level))
+  }
+
+  names(ppc.list) <- names(ps)
+  return (ppc.list)
+}
 
 
 
@@ -125,7 +205,8 @@ getPpc <- function(ps,
   names(ppc.list) <- names(ps)
 
 
-  for(i in 1:length(models)) {
+  # for(i in 1:length(models)) {
+  for(i in 2:length(models)) {
     # get posterior
     ext <- data.frame(rstan::extract(object = ps[[i]]))
     ext <- ext[, regexpr(pattern = "z\\.|log_lik",
@@ -135,54 +216,32 @@ getPpc <- function(ps,
                       replace = TRUE), ]
 
 
+
     ppc.out <- c()
     for(s in 1:gt.data$Ns) {
+      cat(models[i], ":", s, "/", gt.data$Ns, "\n", sep = '')
 
-      if(gt.data$Ntq > 0 & gt.data$Ntd > 0) {
-        ppc.out <- rbind(ppc.out, getPpcQD(ext = ext,
-                                           gt.data = gt.data,
-                                           model = models[i],
-                                           hdi.level = hdi.level,
-                                           s = s))
-      }
-      else if(gt.data$Ntq > 0 & gt.data$Ntd == 0) {
-        ppc.out <- rbind(ppc.out, getPpcQ(ext = ext,
-                                          gt.data = gt.data,
-                                          model = models[i],
-                                          hdi.level = hdi.level,
-                                          s = s))
-      }
-      else if(gt.data$Ntq == 0 & gt.data$Ntd > 0) {
-        ppc.out <- rbind(ppc.out, getPpcD(ext = ext,
-                                          gt.data = gt.data,
-                                          model = models[i],
-                                          hdi.level = hdi.level,
-                                          s = s))
-      }
+      ppc.out <- rbind(ppc.out, getPpcLowestLevel(ext = ext,
+                                                  gt.data = gt.data,
+                                                  model = models[i],
+                                                  hdi.level = hdi.level,
+                                                  s = s))
 
-      if(models[i] != "M0" & models[i] != "M0c") {
-        ppc.out <- rbind(ppc.out, getPpcSnpBeta(p = ext, gt.data = gt.data,
-                                                s = s, hdi.level = hdi.level))
+      cat("A \n")
 
+      if(!models[i] %in% c("M0", "M0c")) {
+        ppc.out <- rbind(ppc.out, getPpcMidLevel(ext = ext,
+                                                 gt.data = gt.data,
+                                                 model = models[i],
+                                                 hdi.level = hdi.level,
+                                                 s = s))
       }
-
-      # progress
-      if(s %% 5 == 0) {
-        cat(models[i], ":", s, "/", gt.data$Ns, "\n", sep = '')
-      }
-
     }
+    # set model
+    ppc.out$model <- models[i]
     ppc.list[[i]] <- ppc.out
   }
 
-  # release cluster
-  # parallel::stopCluster(cl = cl)
-  # doParallel::stopImplicitCluster()
-
   return (ppc.list)
 }
-
-
-
-
 

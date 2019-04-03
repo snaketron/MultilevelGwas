@@ -1,1058 +1,408 @@
 
 
-getPpcQD <- function(ext, gt.data, model, s, hdi.level) {
+getPpcLowestLevel <- function(ext, gt.data, s,
+                              hdi.level, model) {
 
-  getMu <- function(x, y) {
-    return(rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3]))
-  }
-
-  getPr <- function(x, y) {
-    return(1/(1 + exp(-(x[1]+x[2]*y))))
-  }
-
-  getPpcM0QD <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
-
-    # Q-trait
-    for(t in 1:gt.data$Ntq) {
+  getPar <- function(t, s, k, gt.data, model) {
+    if(model == "M0" | model == "M0c") {
+      # alpha
       alpha.p <- paste("alpha", t, sep = '.')
-      sigma.p <- paste("sigma", t, sep = '.')
-      # in case single Ntq => sigma no index
-      if(gt.data$Ntq == 1) {
-        sigma.p <- "sigma"
+      if(gt.data$Ntq+gt.data$Ntd == 1) {
+        alpha.p <- "alpha"
       }
 
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, sep = '.')
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                           FUN = getMu, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yq[i, t] - yhat[, i])
+      # beta
+      beta.p <- paste("beta", t, s, sep = '.')
+      if(gt.data$Ntq+gt.data$Ntd == 1) {
+        beta.p <- paste("beta", s, sep = '.')
       }
 
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(yhat, errors, yhat.hdi, row)
-
-
-    # D-trait
-    for(d in 1:gt.data$Ntd) {
-      t <- d + gt.data$Ntq
-
-      alpha.p <- paste("alpha", t, sep = '.')
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, sep = '.')
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                           FUN = getPr, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yd[i, d] - yhat[, i])
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[,s]==1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[,s]==-1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(i, yhat, yhat.hdi, row)
-
-    return (ppc.summary)
-  }
-
-  getPpcM1QD <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
-
-    # Q-trait
-    for(t in 1:gt.data$Ntq) {
-      alpha.p <- paste("alpha", t, sep = '.')
-      sigma.p <- paste("sigma", t, sep = '.')
-      # in case single Ntq => sigma no index
-      if(gt.data$Ntq == 1) {
-        sigma.p <- "sigma"
-      }
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
-        }
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                           FUN = getMu, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yq[i, t] - yhat[, i])
-      }
-
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real = mean(gt.data$Yq[gt.data$K == k, t]),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(k, yhat, yhat.hdi, row)
-
-
-    # D-trait
-    for(d in 1:gt.data$Ntd) {
-      t <- d + gt.data$Ntq
-
-      alpha.p <- paste("alpha", t, sep = '.')
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
-        }
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                           FUN = getPr, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yd[i, t] - yhat[, i])
-      }
-
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$K == k,d])),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s]==1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[,s]==-1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(k, errors, yhat, yhat.hdi, row)
-
-    return (ppc.summary)
-  }
-
-  getPpcM2QD <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
-
-    # Q-trait
-    for(t in 1:gt.data$Ntq) {
-      alpha.p <- paste("alpha", t, sep = '.')
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        sigma.p <- paste("sigma", gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
+      # Q
+      if(gt.data$trait.type[t] == "Q") {
+        sigma.p <- paste("sigma", t, sep = '.')
+        if(gt.data$Ntq == 1) {
           sigma.p <- "sigma"
         }
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                           FUN = getMu, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yq[i, t] - yhat[, i])
+        par <- c(alpha.p, beta.p, sigma.p)
+        return (par)
       }
-
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real = mean(gt.data$Yq[gt.data$K == k, t]),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
+      # D
+      if(gt.data$trait.type[t] == "D") {
+        par <- c(alpha.p, beta.p)
+        return (par)
       }
     }
-    # clean up
-    rm(k, yhat, yhat.hdi, row)
 
+    if(model == "M1" | model == "M1c") {
 
-    # D-trait
-    for(d in 1:gt.data$Ntd) {
-      t <- d + gt.data$Ntq
-
+      # alpha
       alpha.p <- paste("alpha", t, sep = '.')
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
-        }
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                           FUN = getPr, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yd[i, d] - yhat[, i])
+      if(gt.data$Ntq+gt.data$Ntd == 1) {
+        alpha.p <- "alpha"
       }
 
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$K == k,d])),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == -1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(k, yhat, yhat.hdi, row)
-
-    return (ppc.summary)
-  }
-
-  if(model == "M0" | model == "M0c") {
-    return(getPpcM0QD(gt.data = gt.data, p = ext,
-                      hdi.level = hdi.level, s = s))
-  }
-  else if(model == "M1" | model == "M1c") {
-    return(getPpcM1QD(gt.data = gt.data, p = ext,
-                      hdi.level = hdi.level, s = s))
-  }
-  else if(model == "M2" | model == "M2c") {
-    return(getPpcM2QD(gt.data = gt.data, p = ext,
-                      hdi.level = hdi.level, s = s))
-  }
-}
-
-
-
-getPpcQ <- function(ext, gt.data, model, s, hdi.level) {
-
-  getMu <- function(x, y) {
-    return(rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3]))
-  }
-
-  getPpcM0Q <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
-
-    # Q-trait
-    for(t in 1:gt.data$Ntq) {
-      alpha.p <- paste("alpha", t, sep = '.')
-      sigma.p <- paste("sigma", t, sep = '.')
-      # in case single Ntq => sigma no index
-      if(gt.data$Ntq == 1) {
-        sigma.p <- "sigma"
-      }
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
+      # beta
+      beta.p <- paste("beta", t, s, k, sep = '.')
+      if(gt.data$Nk == 1) {
         beta.p <- paste("beta", t, s, sep = '.')
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                           FUN = getMu, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yq[i, t] - yhat[, i])
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(yhat, yhat.hdi, row)
-
-    return (ppc.summary)
-  }
-
-  getPpcM1Q <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
-
-    # Q-trait
-    for(t in 1:gt.data$Ntq) {
-      alpha.p <- paste("alpha", t, sep = '.')
-      sigma.p <- paste("sigma", t, sep = '.')
-      # in case single Ntq => sigma no index
-      if(gt.data$Ntq == 1) {
-        sigma.p <- "sigma"
-      }
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
+        if(gt.data$Ntq+gt.data$Ntd == 1) {
+          beta.p <- paste("beta", s, sep = '.')
         }
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                           FUN = getMu, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yq[i, t] - yhat[, i])
+      }
+      else {
+        if(gt.data$Ntq+gt.data$Ntd == 1) {
+          beta.p <- paste("beta", s, k, sep = '.')
+        }
       }
 
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real = mean(gt.data$Yq[gt.data$K == k, t]),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(k, yhat, yhat.hdi, row)
-
-    return (ppc.summary)
-  }
-
-  getPpcM2Q <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
-
-    # Q-trait
-    for(t in 1:gt.data$Ntq) {
-      alpha.p <- paste("alpha", t, sep = '.')
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        sigma.p <- paste("sigma", gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
+      # Q
+      if(gt.data$trait.type[t] == "Q") {
+        # sigma
+        sigma.p <- paste("sigma", t, sep = '.')
+        if(gt.data$Ntq == 1) {
           sigma.p <- "sigma"
         }
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                           FUN = getMu, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yq[i, t] - yhat[, i])
+        par <- c(alpha.p, beta.p, sigma.p)
+        return (par)
       }
-
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real = mean(gt.data$Yq[gt.data$K == k, t]),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == 1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real = mean(gt.data$Yq[gt.data$X[, s] == -1, t]),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
+      # D
+      if(gt.data$trait.type[t] == "D") {
+        par <- c(alpha.p, beta.p)
+        return (par)
       }
     }
-    # clean up
-    rm(k, yhat, yhat.hdi, row)
 
-    return (ppc.summary)
-  }
+    if(model == "M2" | model == "M2c") {
 
-  if(model == "M0" | model == "M0c") {
-    return(getPpcM0Q(gt.data = gt.data, p = ext,
-                     hdi.level = hdi.level, s = s))
-  }
-  else if(model == "M1" | model == "M1c") {
-    return(getPpcM1Q(gt.data = gt.data, p = ext,
-                     hdi.level = hdi.level, s = s))
-  }
-  else if(model == "M2" | model == "M2c") {
-    return(getPpcM2Q(gt.data = gt.data, p = ext,
-                     hdi.level = hdi.level, s = s))
-  }
-}
-
-
-
-getPpcD <- function(ext, gt.data, model, s, hdi.level) {
-
-  getPr <- function(x, y) {
-    return(1/(1 + exp(-(x[1]+x[2]*y))))
-  }
-
-  getPpcM0D <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
-
-    # D-trait
-    for(d in 1:gt.data$Ntd) {
-      t <- d + gt.data$Ntq
-
+      # alpha
       alpha.p <- paste("alpha", t, sep = '.')
+      if(gt.data$Ntq+gt.data$Ntd == 1) {
+        alpha.p <- "alpha"
+      }
 
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
+      # beta
+      beta.p <- paste("beta", t, s, k, sep = '.')
+      if(gt.data$Nk == 1) {
         beta.p <- paste("beta", t, s, sep = '.')
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                           FUN = getPr, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yd[i, d] - yhat[, i])
+        if(gt.data$Ntq+gt.data$Ntd == 1) {
+          beta.p <- paste("beta", s, sep = '.')
+        }
+      }
+      else {
+        if(gt.data$Ntq+gt.data$Ntd == 1) {
+          beta.p <- paste("beta", s, k, sep = '.')
+        }
       }
 
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
+      # Q
+      if(gt.data$trait.type[t] == "Q") {
+        # sigma
+        sigma.p <- paste("sigma", k, sep = '.')
+        if(gt.data$Nk == 1) {
+          sigma.p <- "sigma"
+        }
+        par <- c(alpha.p, beta.p, sigma.p)
+        return (par)
       }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == -1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
+      # D
+      if(gt.data$trait.type[t] == "D") {
+        par <- c(alpha.p, beta.p)
+        return (par)
       }
     }
-    # clean up
-    rm(i, yhat, yhat.hdi, row)
-
-    return (ppc.summary)
   }
 
-  getPpcM1D <- function(gt.data, p, hdi.level, s) {
+
+  getMuSnp <- function(x, y, trait.type) {
+    if(trait.type == "D") {
+      return(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
+    }
+    if(trait.type == "Q") {
+      return(rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3]))
+    }
+  }
+
+
+  getPpc <- function(p, gt.data, s,
+                     hdi.level, model) {
+
+    # Make predictions for each individual, based on
+    # the lowest level parameters in M1 and M2
     ppc.summary <- c()
 
-    # D-trait
-    for(d in 1:gt.data$Ntd) {
-      t <- d + gt.data$Ntq
+    for(t in 1:(gt.data$Ntq+gt.data$Ntd)) {
+      # index of D-trait
+      d <- sum(gt.data$trait.type[1:t] == "D")
 
-      alpha.p <- paste("alpha", t, sep = '.')
-
-      # individual level
+      # matrices of results
       yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
       errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
 
+      tt <- gt.data$trait.type[t]
+
+      # Prediction at I
       for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
+
+        ps <- getPar(t = t, s = s, k = gt.data$K[i],
+                     gt.data = gt.data, model = model)
+
+        yhat[, i] <- apply(X = p[, ps], MARGIN = 1, FUN = getMuSnp,
+                           y = gt.data$X[i, s], trait.type = tt)
+
+        if(tt == "Q") {
+          y.real <- gt.data$Yq[i, t]
+        }
+        if(tt == "D") {
+          y.real <- as.numeric(gt.data$Yd[i, d])
         }
 
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                           FUN = getPr, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yd[i, d] - yhat[, i])
+        # compute errors posterior
+        errors[, i] <- abs(y.real - yhat[, i])
+
+        # hdi's
+        yhat.hdi <- getHdi(vec = yhat[, i], hdi.level = hdi.level)
+        errors.hdi <- getHdi(vec = errors[, i], hdi.level = hdi.level)
+
+        row <- data.frame(t = t,
+                          s = s,
+                          k = gt.data$K[i],
+                          i = i,
+                          x = gt.data$X[i, s],
+                          parameter.level = "lowest",
+                          prediction.level = "individual-level",
+                          y.real.mean = y.real,
+                          y.ppc.mean = mean(yhat[, i]),
+                          y.ppc.median = median(yhat[, i]),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2],
+                          error.mean = mean(errors[, i]),
+                          error.median = median(errors[, i]),
+                          error.L = errors.hdi[1],
+                          error.H = errors.hdi[2])
+        ppc.summary <- rbind(ppc.summary, row)
+
+        # cleanup
+        rm(row, yhat.hdi, errors.hdi, y.real, ps)
       }
 
-      # strain level
+
+
+      # Prediction at: K
       for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
+        ks <- which(gt.data$K == k)
 
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$K == k,d])),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
+        if(tt == "Q") {
+          y.real <- gt.data$Yq[gt.data$K == k, t]
+        }
+        if(tt == "D") {
+          y.real <- as.numeric(gt.data$Yd[gt.data$K == k, d])
+        }
+
+        # hdi's
+        yhat.hdi <- getHdi(vec = yhat[, ks], hdi.level = hdi.level)
+        errors.hdi <- getHdi(vec = errors[, ks], hdi.level = hdi.level)
+
+
+        row <- data.frame(t = t,
+                          s = s,
+                          k = k,
+                          i = NA,
+                          x = NA,
+                          parameter.level = "lowest",
+                          prediction.level = "strain-level",
+                          y.real.mean = mean(y.real),
+                          y.ppc.mean = mean(yhat[, ks]),
+                          y.ppc.median = median(yhat[, ks]),
                           y.ppc.L = yhat.hdi[1],
                           y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
+                          error.mean = mean(errors[, ks]),
+                          error.median = median(errors[, ks]),
                           error.L = errors.hdi[1],
                           error.H = errors.hdi[2])
         ppc.summary <- rbind(ppc.summary, row)
+
+        # cleanup
+        rm(row, yhat.hdi, errors.hdi, k, ks)
       }
 
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
 
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s]==1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
+      # Prediction at: S
+      for(x in c(1, -1)) {
+        xs <- which(gt.data$X[, s] == x)
+        if(tt == "Q") {
+          y.real <- gt.data$Yq[xs, t]
+        }
+        if(tt == "D") {
+          y.real <- as.numeric(gt.data$Yd[xs, d])
+        }
+
+        # hdi's
+        yhat.hdi <- getHdi(vec = yhat[, xs], hdi.level = hdi.level)
+        errors.hdi <- getHdi(vec = errors[, xs], hdi.level = hdi.level)
+
+        row <- data.frame(t = t,
+                          s = s,
+                          k = NA,
+                          i = NA,
+                          x = x,
+                          parameter.level = "lowest",
+                          prediction.level = "snp-level",
+                          y.real.mean = mean(y.real),
+                          y.ppc.mean = mean(yhat[, xs]),
+                          y.ppc.median = median(yhat[, xs]),
                           y.ppc.L = yhat.hdi[1],
                           y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
+                          error.mean = mean(errors[, xs]),
+                          error.median = median(errors[, xs]),
                           error.L = errors.hdi[1],
                           error.H = errors.hdi[2])
         ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
 
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s]==-1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
+        # cleanup
+        rm(row, yhat.hdi, errors.hdi, xs)
       }
     }
-    # clean up
-    rm(k, yhat, yhat.hdi, row)
 
     return (ppc.summary)
   }
 
-  getPpcM2D <- function(gt.data, p, hdi.level, s) {
-    ppc.summary <- c()
 
-    # D-trait
-    for(d in 1:gt.data$Ntd) {
-      t <- d + gt.data$Ntq
-
-      alpha.p <- paste("alpha", t, sep = '.')
-
-      # individual level
-      yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-      errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-
-      for(i in 1:gt.data$N) {
-        beta.p <- paste("beta", t, s, gt.data$K[i], sep = '.')
-        # TODO: check in case single Ntq => sigma no index
-        if(gt.data$Nk == 1) {
-          beta.p <- paste("beta", t, s, sep = '.')
-        }
-
-        yhat[, i] <- apply(X = p[, c(alpha.p, beta.p)], MARGIN = 1,
-                           FUN = getPr, y = gt.data$X[i, s])
-        errors[, i] <- abs(gt.data$Yd[i, d] - yhat[, i])
-      }
-
-      # strain level
-      for(k in 1:gt.data$Nk) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$K == k]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$K == k]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = k, x = NA, level = "strain",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$K == k,d])),
-                          y.ppc = mean(yhat[, gt.data$K == k]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$K == k]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-
-      # snp level
-      if(sum(gt.data$X[, s] == 1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == 1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == 1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = 1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == 1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == 1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == 1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-      # snp level
-      if(sum(gt.data$X[, s] == -1) != 0) {
-        yhat.hdi <- getHdi(vec = as.vector(yhat[, gt.data$X[, s] == -1]),
-                           hdi.level = hdi.level)
-        errors.hdi <- getHdi(vec = as.vector(errors[, gt.data$X[, s] == -1]),
-                             hdi.level = hdi.level)
-
-        row <- data.frame(t = t, s = s, k = NA, x = -1, level = "snp",
-                          y.real=mean(as.numeric(gt.data$Yd[gt.data$X[, s] == -1,d])),
-                          y.ppc = mean(yhat[, gt.data$X[, s] == -1]),
-                          y.ppc.L = yhat.hdi[1],
-                          y.ppc.H = yhat.hdi[2],
-                          error = mean(errors[, gt.data$X[, s] == -1]),
-                          error.L = errors.hdi[1],
-                          error.H = errors.hdi[2])
-        ppc.summary <- rbind(ppc.summary, row)
-      }
-    }
-    # clean up
-    rm(k, yhat, yhat.hdi, row)
-
-    return (ppc.summary)
-  }
-
-  if(model == "M0" | model == "M0c") {
-    return(getPpcM0D(gt.data = gt.data, p = ext,
-                     hdi.level = hdi.level, s = s))
-  }
-  else if(model == "M1" | model == "M1c") {
-    return(getPpcM1D(gt.data = gt.data, p = ext,
-                     hdi.level = hdi.level, s = s))
-  }
-  else if(model == "M2" | model == "M2c") {
-    return(getPpcM2D(gt.data = gt.data, p = ext,
-                     hdi.level = hdi.level, s = s))
-  }
+  return(getPpc(p = ext, gt.data = gt.data,
+                s = s, hdi.level = hdi.level,
+                model = model))
 }
 
 
+getPpcMidLevel <- function(ext, gt.data, s,
+                           hdi.level, model) {
 
-getPpcSnpBeta <- function(p, gt.data, s, hdi.level, model) {
+  getPar <- function(t, s, k, gt.data, model) {
+    # alpha
+    alpha.p <- paste("alpha", t, sep = '.')
+    if(gt.data$Ntq+gt.data$Ntd == 1) {
+      alpha.p <- "alpha"
+    }
 
-  getMuSnp <- function(x, y, isD) {
+    # beta
+    beta.p <- paste("mu_beta", t, s, sep = '.')
+    if(gt.data$Ntq+gt.data$Ntd == 1) {
+      beta.p <- paste("mu_beta", s, sep = '.')
+    }
+
+    # sigma
+    sigma.p <- paste("sigma_beta", t, sep = '.')
+    if(gt.data$Ntq == 1) {
+      sigma.p <- "sigma_beta"
+    }
+
+
+    par <- c(alpha.p, beta.p, sigma.p)
+    return (par)
+  }
+
+
+  getMuSnp <- function(x, y, trait.type) {
     m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
-    if(isD == TRUE) {
-      m <- 1/(1 + exp(m))
+    if(trait.type == "D") {
+      m <- 1/(1 + exp(-m))
     }
     return(m)
   }
 
 
-  ppc.summary <- c()
+  getPpc <- function(p, gt.data, s,
+                     hdi.level, model) {
 
-  for(t in 1:(gt.data$Ntq+gt.data$Ntd)) {
-    # index of D-trait
-    d <- sum(gt.data$trait.type[1:t] == "D")
+    # Make predictions for each individual, based on the lowest level + 1
+    # parameters in M1 and M2
+    ppc.summary <- c()
 
-    # individual level
-    yhat <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
-    errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
+    # Prediction at: X
+    for(t in 1:(gt.data$Ntq+gt.data$Ntd)) {
+      # index of D-trait
+      d <- sum(gt.data$trait.type[1:t] == "D")
 
-    # select posteriors
-    alpha.p <- paste("alpha", t, sep = '.')
-    beta.p <- paste("mu_beta", t, s, sep = '.')
-    sigma.p <- paste("sigma_beta", t, sep = '.')
+      tt <- gt.data$trait.type[t]
+      for(x in c(1, -1)) {
+        ps <- getPar(t = t, s = s, k = gt.data$K[i],
+                     gt.data = gt.data, model = model)
 
-    # browser()
+        yhat <- apply(X = p[, ps], MARGIN = 1, FUN = getMuSnp,
+                      y = x, trait.type = tt)
 
-    # compute for design var X = 1 and X = -1
-    for(x in c(1, -1)) {
-      if(gt.data$trait.type[t] == "Q") {
-        yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                      FUN = getMuSnp, y = x, isD = FALSE)
-        errors <- abs(mean(gt.data$Yq[gt.data$X[, s] == x, t]) - yhat)
-        y.real = mean(gt.data$Yq[gt.data$X[, s] == x, t])
+        # real data
+        xs <- which(gt.data$X[, s] == x)
+        if(length(xs) != 0) {
+          if(tt == "Q") {
+            y.real <- mean(gt.data$Yq[xs, t])
+          }
+          if(tt == "D") {
+            y.real <- mean(as.numeric(gt.data$Yd[xs, d]))
+          }
+
+          # compute errors posterior
+          errors <- abs(y.real - yhat)
+
+          # hdi's
+          yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
+          errors.hdi <- getHdi(vec = errors, hdi.level = hdi.level)
+
+          row <- data.frame(t = t,
+                            s = s,
+                            k = NA,
+                            i = NA,
+                            x = x,
+                            parameter.level = "lowest-plus-one",
+                            prediction.level = "snp-level",
+                            y.real.mean = y.real,
+                            y.ppc.mean = mean(x = yhat),
+                            y.ppc.median = median(x = yhat),
+                            y.ppc.L = yhat.hdi[1],
+                            y.ppc.H = yhat.hdi[2],
+                            error.mean = mean(x = errors),
+                            error.median = median(x = errors),
+                            error.L = errors.hdi[1],
+                            error.H = errors.hdi[2])
+
+
+
+          # cleanup
+          rm(errors.hdi)
+        }
+        else {
+
+          # hdi's
+          yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
+
+          row <- data.frame(t = t,
+                            s = s,
+                            k = NA,
+                            i = NA,
+                            x = x,
+                            parameter.level = "lowest-plus-one",
+                            prediction.level = "snp-level",
+                            y.real.mean = NA,
+                            y.ppc.mean = NA,
+                            y.ppc.median = median(x = yhat),
+                            y.ppc.L = yhat.hdi[1],
+                            y.ppc.H = yhat.hdi[2],
+                            error.mean = NA,
+                            error.median = NA,
+                            error.L = NA,
+                            error.H = NA)
+        }
+        ppc.summary <- rbind(ppc.summary, row)
+
+        # cleanup
+        rm(row, y.real, ps, yhat.hdi)
       }
-      if(gt.data$trait.type[t] == "D") {
-        yhat <- apply(X = p[, c(alpha.p, beta.p, sigma.p)], MARGIN = 1,
-                      FUN = getMuSnp, y = x, isD = TRUE)
-        errors <- abs(mean(gt.data$Yd[gt.data$X[, s] == x, d]) - yhat)
-        y.real = mean(gt.data$Yd[gt.data$X[, s] == x, d])
-      }
-
-
-      # hdi's
-      yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-      errors.hdi <- getHdi(vec = errors, hdi.level = hdi.level)
-
-
-      row <- data.frame(t = t, s = s, k = NA, x = x,
-                        level = "snp_beta",
-                        y.real = y.real,
-                        y.ppc = mean(yhat),
-                        y.ppc.L = yhat.hdi[1],
-                        y.ppc.H = yhat.hdi[2],
-                        error = mean(errors),
-                        error.L = errors.hdi[1],
-                        error.H = errors.hdi[2])
-      ppc.summary <- rbind(ppc.summary, row)
     }
 
-    # cleanup
-    rm(row, yhat.hdi, errors.hdi, x,
-       y.real, alpha.p, beta.p, d)
+    return (ppc.summary)
   }
 
-  return (ppc.summary)
+
+  return(getPpc(p = ext, gt.data = gt.data,
+                s = s, hdi.level = hdi.level,
+                model = model))
 }

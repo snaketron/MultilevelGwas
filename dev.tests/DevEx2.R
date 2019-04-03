@@ -1,3 +1,11 @@
+require(rstan)
+require(loo)
+require(parallel)
+require(foreach)
+require(doParallel)
+require(Biostrings)
+
+
 source("R/main.R")
 source("R/util.R")
 source("R/bayesian.R")
@@ -5,12 +13,6 @@ source("R/statlearn.R")
 source("R/modelcomparison.R")
 source("R/ppc.R")
 
-require(rstan)
-require(loo)
-require(parallel)
-require(foreach)
-require(doParallel)
-require(Biostrings)
 
 
 # homozygous strains
@@ -71,40 +73,24 @@ ggplot(data = d)+
 
 
 
-# create data list
-data.list <- list(Yq = traits,
-                  Yd = matrix(data = 0,
-                              nrow = nrow(traits),
-                              ncol = 0),
-                  K = strains,
-                  Nk = max(strains),
-                  Ntd = 0,
-                  Ntq = ncol(traits),
-                  N = nrow(traits))
-
-
-
-
-
 
 mc <- runModelComparison(genotype = genotype,
                          traits = traits,
                          trait.type = c("Q", "Q", "Q", "Q"),
                          strains = strains,
-                         models = c("M0", "M0c", "M1", "M1c", "M2", "M2c"),
+                         models = c("M0", "M1"),
                          mcmc.chains = 4,
-                         mcmc.steps = 3000,
-                         mcmc.warmup = 1500,
+                         mcmc.steps = 2000,
+                         mcmc.warmup = 500,
                          cores = 4,
                          hdi.level = 0.95,
-                         adapt_delta = 0.99,
+                         adapt_delta = 0.95,
                          max_treedepth = 12)
 
 save(mc, file = "dev.tests/dev.ex2.RData")
 
 
 
-mc <- get(load(file = "dev.tests/dev.ex1.RData"))
 
 # check loo.ic
 mc$ic$loo
@@ -113,47 +99,142 @@ mc$ic$waic
 mc$ppc <- x
 
 
-mc$ppc$M0$model <- "M0"
-mc$ppc$M1$model <- "M1"
-mc$ppc$M2$model <- "M2"
-mc$ppc$M0c$model <- "M0c"
-mc$ppc$M1c$model <- "M1c"
-mc$ppc$M2c$model <- "M2c"
-
 
 ppc <- rbind(mc$ppc$M0, mc$ppc$M1, mc$ppc$M2,
              mc$ppc$M0c, mc$ppc$M1c, mc$ppc$M2c)
 
-ggplot(ppc[ppc$level == "snp", ])+
+
+#### Parameters: lowest ####
+# Prediction: individual-level
+ggplot(data = ppc[ppc$prediction.level == "individual-level", ])+
   facet_grid(facets = t~model)+
-  geom_errorbar(aes(x = s, ymin = error.L, ymax = error.H), col = "black")+
-  geom_point(aes(x = s, y = error), shape = 21,
-             fill = "white", col = "black")+
+  geom_errorbar(aes(ymin = y.ppc.L, ymax = y.ppc.H, x = y.real.mean), col = "darkgray")+
+  geom_abline(slope = 1, intercept = 0)+
+  geom_point(aes(y = y.ppc.mean, x = y.real.mean), shape = 21, fill = "white")+
   theme_bw()
 
-ggplot(ppc[ppc$level == "snp_beta", ])+
+ggplot(data = ppc[ppc$prediction.level == "individual-level", ])+
   facet_grid(facets = t~model)+
-  geom_errorbar(aes(x = s, ymin = error.L, ymax = error.H), col = "black")+
-  geom_point(aes(x = s, y = error), shape = 21,
-             fill = "white", col = "black")+
-  theme_bw()
-
-ggplot(ppc[ppc$level == "strain" & ppc$s == 1, ])+
-  facet_grid(facets = t~model)+
-  geom_errorbar(aes(x = k, ymin = error.L, ymax = error.H), col = "black")+
-  geom_point(aes(x = k, y = error), shape = 21,
-             fill = "white", col = "black")+
+  geom_density2d(aes(y = y.ppc.mean, x = y.real.mean), col = "orange")+
+  geom_abline(slope = 1, intercept = 0)+
   theme_bw()
 
 
-aggregate(error~model+t+level, data = ppc, FUN = mean)
-aggregate(error~model+level, data = ppc, FUN = mean)
+
+# Prediction: strain-level
+ggplot(data = ppc[ppc$prediction.level == "strain-level", ])+
+  facet_grid(facets = t~model)+
+  geom_errorbar(aes(ymin = y.ppc.L, ymax = y.ppc.H, x = y.real.mean), col = "darkgray")+
+  geom_abline(slope = 1, intercept = 0)+
+  geom_point(aes(y = y.ppc.mean, x = y.real.mean), shape = 21, fill = "white")+
+  theme_bw()
+
+ggplot(data = ppc[ppc$prediction.level == "strain-level", ])+
+  facet_grid(facets = t~model)+
+  geom_density2d(aes(y = y.ppc.mean, x = y.real.mean), col = "orange")+
+  geom_abline(slope = 1, intercept = 0)+
+  theme_bw()
 
 
-x <- data.frame(extract(object = mc$ps$M2,
-                pars = c("alpha", "beta", "mu_beta")))
-hist(x$mu_beta.1.1, breaks = 100)
-hist(x$mu_beta.4.1, breaks = 100)
-hist(x$mu_beta.1.25, breaks = 100)
 
-summary(mc$ps$M0c, pars = "rho")$summary
+# Prediction: snp-level
+ggplot(data = ppc[ppc$prediction.level == "snp-level" &
+                    ppc$parameters.level == "lowest", ])+
+  facet_grid(facets = t~model)+
+  geom_errorbar(aes(ymin = y.ppc.L, ymax = y.ppc.H, x = y.real.mean), col = "darkgray")+
+  geom_abline(slope = 1, intercept = 0)+
+  geom_point(aes(y = y.ppc.mean, x = y.real.mean), shape = 21, fill = "white")+
+  theme_bw()
+
+ggplot(data = ppc[ppc$prediction.level == "snp-level" &
+                    ppc$parameters.level == "lowest", ])+
+  facet_grid(facets = t~model)+
+  geom_density2d(aes(y = y.ppc.mean, x = y.real.mean), col = "orange")+
+  geom_abline(slope = 1, intercept = 0)+
+  theme_bw()
+
+
+
+#### Parameters: lowest-plus-one ####
+
+ggplot(data = ppc[ppc$prediction.level == "snp-level" &
+                    ppc$parameters.level == "lowest-plus-one", ])+
+  facet_grid(facets = t~model)+
+  geom_errorbar(aes(ymin = y.ppc.L, ymax = y.ppc.H, x = y.real.mean), col = "darkgray")+
+  geom_abline(slope = 1, intercept = 0)+
+  geom_point(aes(y = y.ppc.mean, x = y.real.mean), shape = 21, fill = "white")+
+  theme_bw()
+
+
+
+ggplot(data = ppc[ppc$prediction.level == "snp-level", ])+
+  facet_grid(facets = t~model+parameters.level)+
+  geom_errorbar(aes(ymin = y.ppc.L, ymax = y.ppc.H, x = y.real.mean), col = "darkgray")+
+  geom_abline(slope = 1, intercept = 0)+
+  geom_point(aes(y = y.ppc.mean, x = y.real.mean), shape = 21, fill = "white")+
+  theme_bw()
+
+
+
+
+# Function:
+# summarize errors
+getErrorSummary <- function(ppc, hdi.level) {
+  source("R/util.R")
+  error.summary <- c()
+
+  key <- ppc[, c("model", "t", "level")]
+  key <- key[duplicated(key) == F, ]
+
+  for(i in 1:nrow(key)) {
+    error <- ppc$error.mean[ppc$level == key$level[i] &
+                              ppc$t == key$t[i] &
+                              ppc$model == key$model[i]]
+    error <- error[is.finite(error)]
+
+    # error.summary
+    error.hdi <- getHdi(vec = error, hdi.level = hdi.level)
+    row <- data.frame(model = key$model[i],
+                      t = key$t[i],
+                      level = key$level[i],
+                      error.mean = mean(error),
+                      error.L = error.hdi[1],
+                      error.H = error.hdi[2])
+    error.summary <- rbind(error.summary, row)
+
+    # rm
+    rm(row, error.hdi, error)
+  }
+
+
+  error.summary$model <- factor(x = error.summary$model,
+                                levels = c("M0", "M0c", "M1",
+                                           "M1c", "M2", "M2c"))
+  return (error.summary)
+}
+
+
+
+error.summary <- getErrorSummary(ppc = ppc, hdi.level = 0.95)
+error.summary$cov <- F
+error.summary$cov[regexpr(pattern = "c", text = error.summary$model) != -1] <- T
+error.summary$model <- gsub(pattern = 'c', replacement = '', x = error.summary$model)
+
+ggplot(data = error.summary)+
+  facet_grid(facets = t~level)+
+  geom_errorbar(aes(x = model, ymin = error.L, ymax = error.H, shape = cov),
+                col = "black", width = 0.35, position = position_dodge(width = 0.5))+
+  geom_point(aes(x = model, y = error.mean, fill = model, shape = cov, col = model),
+             size = 3, position = position_dodge(width = 0.5))+
+  theme_bw()+
+  theme(legend.position = "top")
+
+
+
+x <- summary(mc$ps$M0, pars = "beta")$summary
+y <- summary(mc$ps$M1c, pars = "mu_beta")$summary
+plot(x = x[301:600, "mean"], y = y[301:600, "mean"])
+abline(0, 1)
+
+z <- data.frame(summary(mc$ps$M1c)$summary)
+z$par <- rownames(z)

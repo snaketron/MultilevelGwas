@@ -318,7 +318,8 @@ getStanModel <- function(model.name, comparison.mode) {
 
 # Function:
 # Given model.name, fetch appropriate stan model
-getStanModelDebug <- function(model.name, comparison = TRUE) {
+getStanModelDebugReal <- function(model.name,
+                              comparison = TRUE) {
   if(comparison) {
 
     # M0
@@ -384,6 +385,76 @@ getStanModelDebug <- function(model.name, comparison = TRUE) {
   return (stan.model)
 }
 
+
+
+# Function:
+# Given model.name, fetch appropriate stan model
+getStanModelDebug <- function(model.name,
+                              comparison = TRUE) {
+  if(comparison) {
+
+    # M0
+    if(model.name == "M0") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0_loglik.stan")
+    }
+    # M0c
+    if(model.name == "M0c") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0c_loglik.stan")
+    }
+
+    # M1
+    if(model.name == "M1") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1_loglik.stan")
+    }
+    # M1c
+    if(model.name == "M1c") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1c_loglik.stan")
+    }
+
+    # M2
+    if(model.name == "M2") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2_loglik.stan")
+    }
+    # M2c
+    if(model.name == "M2c") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2c_loglik.stan")
+    }
+
+  }
+  else {
+
+    # M0
+    if(model.name == "M0") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0.stan")
+    }
+    # M0c
+    if(model.name == "M0c") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0c.stan")
+    }
+
+    # M1
+    if(model.name == "M1") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1.stan")
+    }
+    # M1c
+    if(model.name == "M1c") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1c.stan")
+    }
+
+    # M2
+    if(model.name == "M2") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2.stan")
+    }
+    # M2c
+    if(model.name == "M2c") {
+      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2c.stan")
+    }
+
+  }
+
+
+  return (stan.model)
+}
 
 
 
