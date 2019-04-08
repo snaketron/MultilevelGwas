@@ -75,10 +75,10 @@ runModelComparison <- function(genotype,
 
   # compute PPC
   cat("3) Posterior prediction ... \n")
-  # ppc <- getPpc(ps = ps,
-  #               gt.data = gt.data,
-  #               models = models,
-  #               hdi.level = hdi.level)
+  ppc <- getPpc(ps = ps,
+                gt.data = gt.data,
+                models = models,
+                hdi.level = hdi.level)
   # ppc <- getPpcMc(ps = ps,
   #                 gt.data = gt.data,
   #                 models = models,
@@ -87,7 +87,7 @@ runModelComparison <- function(genotype,
 
   return (list(ps = ps,
                ic = ic,
-               ppc = NA,
+               ppc = ppc,
                gt.data = gt.data))
 }
 
@@ -176,16 +176,21 @@ getPpcMc <- function(ps,
   }
 
 
-  for(i in 1:length(models)) {
-    ppc.list <- (foreach(i = 1:length(ps),
-                         .export = c("getHdi",
-                                     "getPpcLowestLevel",
-                                     "getPpcMidLevel")) %dopar%
-                   runPpc(p = ps[[i]],
-                          gt.data = gt.data,
-                          model= models[i],
-                          hdi.level = hdi.level))
-  }
+
+  # MC
+  ppc.list <- (foreach(i = 1:length(ps),
+                       .export = c("getHdi",
+                                   "getPpcLowestLevel",
+                                   "getPpcMidLevel")) %dopar%
+                 runPpc(p = ps[[i]],
+                        gt.data = gt.data,
+                        model= models[i],
+                        hdi.level = hdi.level))
+
+
+  # multicore classification
+  # parallel::stopCluster(cl = cl)
+  # doParallel::stopImplicitCluster()
 
   names(ppc.list) <- names(ps)
   return (ppc.list)
@@ -205,8 +210,7 @@ getPpc <- function(ps,
   names(ppc.list) <- names(ps)
 
 
-  # for(i in 1:length(models)) {
-  for(i in 2:length(models)) {
+  for(i in 1:length(models)) {
     # get posterior
     ext <- data.frame(rstan::extract(object = ps[[i]]))
     ext <- ext[, regexpr(pattern = "z\\.|log_lik",
@@ -214,7 +218,6 @@ getPpc <- function(ps,
     ext <- ext[sample(x = 1:nrow(ext),
                       size = min(c(500, nrow(ext))),
                       replace = TRUE), ]
-
 
 
     ppc.out <- c()

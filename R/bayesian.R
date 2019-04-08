@@ -38,7 +38,7 @@ runBayesianInference <- function(gt.data,
                   max_treedepth = dot.param$max_treedepth)
 
   # create names for sample files to use if sample.file is specified
-  stan.model@model_name <- gsub(pattern = "\\_loglik|t", replacement = '',
+  stan.model@model_name <- gsub(pattern = "\\_loglik|t|e", replacement = '',
                                 x = stan.model@model_name)
 
   sample.file <- NULL

@@ -1,5 +1,8 @@
 
 
+
+# Function:
+# Use the most specific parameters to make predictions at different levels
 getPpcLowestLevel <- function(ext, gt.data, s,
                               hdi.level, model) {
 
@@ -13,9 +16,6 @@ getPpcLowestLevel <- function(ext, gt.data, s,
 
       # beta
       beta.p <- paste("beta", t, s, sep = '.')
-      if(gt.data$Ntq+gt.data$Ntd == 1) {
-        beta.p <- paste("beta", s, sep = '.')
-      }
 
       # Q
       if(gt.data$trait.type[t] == "Q") {
@@ -47,11 +47,6 @@ getPpcLowestLevel <- function(ext, gt.data, s,
         beta.p <- paste("beta", t, s, sep = '.')
         if(gt.data$Ntq+gt.data$Ntd == 1) {
           beta.p <- paste("beta", s, sep = '.')
-        }
-      }
-      else {
-        if(gt.data$Ntq+gt.data$Ntd == 1) {
-          beta.p <- paste("beta", s, k, sep = '.')
         }
       }
 
@@ -88,11 +83,6 @@ getPpcLowestLevel <- function(ext, gt.data, s,
           beta.p <- paste("beta", s, sep = '.')
         }
       }
-      else {
-        if(gt.data$Ntq+gt.data$Ntd == 1) {
-          beta.p <- paste("beta", s, k, sep = '.')
-        }
-      }
 
       # Q
       if(gt.data$trait.type[t] == "Q") {
@@ -115,10 +105,12 @@ getPpcLowestLevel <- function(ext, gt.data, s,
 
   getMuSnp <- function(x, y, trait.type) {
     if(trait.type == "D") {
-      return(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
+      return(1/(1 + exp(-(x[1]+x[2]*y))))
+      # return(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
     }
     if(trait.type == "Q") {
-      return(rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3]))
+      return(x[1]+x[2]*y)
+      # return(rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3]))
     }
   }
 
@@ -139,6 +131,7 @@ getPpcLowestLevel <- function(ext, gt.data, s,
       errors <- matrix(data = NA, nrow = nrow(p), ncol = gt.data$N)
 
       tt <- gt.data$trait.type[t]
+
 
       # Prediction at I
       for(i in 1:gt.data$N) {
@@ -201,7 +194,6 @@ getPpcLowestLevel <- function(ext, gt.data, s,
         # hdi's
         yhat.hdi <- getHdi(vec = yhat[, ks], hdi.level = hdi.level)
         errors.hdi <- getHdi(vec = errors[, ks], hdi.level = hdi.level)
-
 
         row <- data.frame(t = t,
                           s = s,
@@ -273,6 +265,9 @@ getPpcLowestLevel <- function(ext, gt.data, s,
 }
 
 
+
+# Function:
+# Use the mid-level parameters (SNP effects) to make predictions
 getPpcMidLevel <- function(ext, gt.data, s,
                            hdi.level, model) {
 
@@ -286,7 +281,7 @@ getPpcMidLevel <- function(ext, gt.data, s,
     # beta
     beta.p <- paste("mu_beta", t, s, sep = '.')
     if(gt.data$Ntq+gt.data$Ntd == 1) {
-      beta.p <- paste("mu_beta", s, sep = '.')
+      beta.p <- paste("mu_beta", t, s, sep = '.')
     }
 
     # sigma
@@ -302,7 +297,8 @@ getPpcMidLevel <- function(ext, gt.data, s,
 
 
   getMuSnp <- function(x, y, trait.type) {
-    m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+    # m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+    m <- x[1]+x[2]*y
     if(trait.type == "D") {
       m <- 1/(1 + exp(-m))
     }
@@ -406,3 +402,6 @@ getPpcMidLevel <- function(ext, gt.data, s,
                 s = s, hdi.level = hdi.level,
                 model = model))
 }
+
+
+

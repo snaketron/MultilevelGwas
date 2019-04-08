@@ -391,33 +391,42 @@ getStanModelDebugReal <- function(model.name,
 # Given model.name, fetch appropriate stan model
 getStanModelDebug <- function(model.name,
                               comparison = TRUE) {
+
+  dir <- ''
+
   if(comparison) {
 
     # M0
     if(model.name == "M0") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0_loglik.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M0_loglik.stan", sep = ''))
     }
     # M0c
     if(model.name == "M0c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0c_loglik.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M0c_loglik.stan", sep = ''))
     }
 
     # M1
     if(model.name == "M1") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1_loglik.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M1_loglik.stan", sep = ''))
     }
     # M1c
     if(model.name == "M1c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1c_loglik.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files", dir,
+                                                   "/M1c_loglik.stan", sep = ''))
     }
 
     # M2
     if(model.name == "M2") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2_loglik.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M2_loglik.stan", sep = ''))
     }
     # M2c
     if(model.name == "M2c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2c_loglik.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M2c_loglik.stan", sep = ''))
     }
 
   }
@@ -425,29 +434,35 @@ getStanModelDebug <- function(model.name,
 
     # M0
     if(model.name == "M0") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M0.stan", sep = ''))
     }
     # M0c
     if(model.name == "M0c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM0c.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M0c.stan", sep = ''))
     }
 
     # M1
     if(model.name == "M1") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M1.stan", sep = ''))
     }
     # M1c
     if(model.name == "M1c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM1c.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files", dir,
+                                                   "/M1c.stan", sep = ''))
     }
 
     # M2
     if(model.name == "M2") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M2.stan", sep = ''))
     }
     # M2c
     if(model.name == "M2c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/noise/tM2c.stan")
+      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
+                                                   "/M2c.stan", sep = ''))
     }
 
   }
@@ -458,71 +473,94 @@ getStanModelDebug <- function(model.name,
 
 
 
-getStanModelPars <- function(model.name, comparison = TRUE) {
+getStanModelPars <- function(model.name,
+                             comparison = TRUE) {
   if(comparison) {
     # M0
     if(model.name == "M0") {
       pars <- c("alpha", "beta", "sigma",
-                "mu_beta", "sigma_beta",
-                "log_lik")
+                "mu_beta", "log_lik",
+                "log_lik2", "nu", "nu_help")
     }
     if(model.name == "M0c") {
       pars <- c("alpha", "beta", "sigma",
-                "mu_beta", "sigma_beta",
-                "log_lik", "rho")
+                "mu_beta", "log_lik", "log_lik2",
+                "rho", "nu", "nu_help")
     }
 
     # M1
     if(model.name == "M1") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "grand_sigma_beta", "log_lik")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_beta", "log_lik",
+                "log_lik2", "nu", "nu_help")
     }
     if(model.name == "M1c") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "grand_sigma_beta", "rho", "log_lik")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_beta", "log_lik",
+                "log_lik2", "rho", "nu",
+                "nu_help")
     }
 
     # M2
     if(model.name == "M2") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
-                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
-                "grand_sigma_beta", "log_lik")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_trait", "mean_trait",
+                "sigma_beta", "log_lik",
+                "nu", "nu_help")
     }
     if(model.name == "M2c") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
-                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
-                "grand_sigma_beta", "log_lik", "rho")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_trait", "mean_trait",
+                "sigma_beta", "log_lik",
+                "log_lik2", "rho",
+                "nu", "nu_help")
     }
   }
   else {
     # M0
     if(model.name == "M0") {
-      pars <- c("alpha", "beta", "sigma", "mu_beta", "sigma_beta")
+      pars <- c("alpha", "beta", "sigma",
+                "mu_beta",
+                "nu", "nu_help")
     }
     if(model.name == "M0c") {
-      pars <- c("alpha", "beta", "sigma", "mu_beta", "sigma_beta", "rho")
+      pars <- c("alpha", "beta", "sigma",
+                "mu_beta", "rho",
+                "nu", "nu_help")
     }
 
     # M1
     if(model.name == "M1") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "grand_sigma_beta")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_beta",
+                "nu", "nu_help")
     }
     if(model.name == "M1c") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "grand_sigma_beta", "rho")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_beta", "rho",
+                "nu", "nu_help")
     }
 
     # M2
     if(model.name == "M2") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
-                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
-                "grand_sigma_beta")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_trait", "mean_trait",
+                "sigma_beta",
+                "nu", "nu_help")
     }
     if(model.name == "M2c") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta",
-                "sigma", "sigma_trait", "mean_trait", "sigma_beta",
-                "grand_sigma_beta", "rho")
+      pars <- c("alpha", "beta", "mu_beta",
+                "grand_mu_beta", "sigma",
+                "sigma_trait", "mean_trait",
+                "sigma_beta", "rho",
+                "nu", "nu_help")
     }
   }
 
@@ -1600,4 +1638,23 @@ getHdi <- function(vec, hdi.level) {
   HDIlim = c(HDImin, HDImax)
   return(HDIlim)
 }
+
+
+
+
+# Function:
+# Compute the moments of Student-t distribution
+getTMoments <- function(nu, mu) {
+  t.mean <- mu*sqrt(nu/2)*(gamma((nu-1)/2)/gamma(nu/2))
+  if(nu >= 2) {
+    t.var <- (nu*(1+mu^2))/(nu-2) -(mu^2*nu)/2 * (gamma((nu-1)/2)/gamma(nu/2))
+  }
+  else {
+    t.var <- NA
+  }
+
+  return (list(t.mean = t.mean, t.var = t.var))
+}
+
+
 

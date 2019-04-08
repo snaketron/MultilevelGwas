@@ -15,7 +15,8 @@ parameters {
   matrix [Ntq+Ntd, 1] grand_mu_beta;
   vector <lower = 0> [Ntq] sigma;
   vector <lower = 0> [Ntq+Ntd] sigma_beta;
-  vector <lower = 0> [Ntq+Ntd] grand_sigma_beta;
+  real <lower = 0> nu;
+  real <lower = 2> nu_help;
   matrix [Ns, Nk] z [Ntq+Ntd];
   matrix [Ntq+Ntd, Ns] grand_z;
   cholesky_factor_corr [Ntq+Ntd] L_rho;
@@ -27,9 +28,9 @@ transformed parameters {
 
 
   for(s in 1:Ns) {
-    // multi_normal
-      mu_beta[, s] = grand_mu_beta[, 1] + diag_pre_multiply(grand_sigma_beta, L_rho)*grand_z[, s];
-    }
+    // multi t
+    mu_beta[, s] = grand_mu_beta[, 1] + sqrt(nu_help/nu) * (L_rho * grand_z[, s]);
+  }
 
 
   for(t in 1:(Ntq+Ntd)) {
@@ -62,7 +63,8 @@ model {
 
   sigma ~ cauchy(0, 5);
   sigma_beta ~ cauchy(0, 5);
-  grand_sigma_beta ~ cauchy(0, 5);
+  (nu_help-2) ~ exponential(0.5);
+  nu ~ chi_square(nu_help);
 
   for(t in 1:(Ntq+Ntd)) {
     to_vector(z[t]) ~ normal(0, 1);
@@ -75,7 +77,5 @@ model {
 
 generated quantities {
   corr_matrix[(Ntq+Ntd)] rho;
-  matrix[(Ntq+Ntd), (Ntq+Ntd)] SD_cov;
   rho = multiply_lower_tri_self_transpose(L_rho);
-  SD_cov = quad_form_diag(rho, grand_sigma_beta);
 }

@@ -12,17 +12,15 @@ parameters {
   vector [Ntq+Ntd] alpha;
   vector <lower = 0> [Ntq] sigma;
   matrix [Ntq+Ntd, 1] mu_beta;
-  vector <lower = 0> [Ntq+Ntd] sigma_beta;
+  real <lower = 0> nu;
+  real <lower = 2> nu_help;
   matrix [Ntq+Ntd, Ns] z;
 }
 
 transformed parameters {
   matrix [Ntq+Ntd, Ns] beta;
-
-  for(t in 1:(Ntq+Ntd)) {
-    for(s in 1:Ns) {
-      beta[t, s] = mu_beta[t, 1] + z[t, s]*sigma_beta[t];
-    }
+  for(s in 1:Ns) {
+     beta[, s] = mu_beta[, 1] + sqrt(nu_help/nu)*z[, s];
   }
 }
 
@@ -43,7 +41,8 @@ model {
   alpha ~ student_t(1, 0, 100);
   mu_beta[, 1] ~ student_t(1, 0, 10);
   sigma ~ cauchy(0, 5);
-  sigma_beta ~ cauchy(0, 5);
+  (nu_help-2) ~ exponential(0.5);
+  nu ~ chi_square(nu_help);
 
   for(s in 1:Ns) {
     z[, s] ~ normal(0, 1);

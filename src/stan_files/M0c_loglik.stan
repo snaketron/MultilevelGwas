@@ -12,15 +12,17 @@ parameters {
   vector [Ntq+Ntd] alpha;
   vector <lower = 0> [Ntq] sigma;
   matrix [Ntq+Ntd, 1] mu_beta;
-  vector <lower = 0> [Ntq+Ntd] sigma_beta;
-  cholesky_factor_corr [Ntq+Ntd] L_rho;
+  real <lower = 0> nu;
+  real <lower = 2> nu_help;
   matrix [Ntq+Ntd, Ns] z;
+  cholesky_factor_corr [Ntq+Ntd] L_rho;
 }
 
 transformed parameters {
   matrix [Ntq+Ntd, Ns] beta;
   for(s in 1:Ns) {
-     beta[, s] = mu_beta[, 1] + diag_pre_multiply(sigma_beta, L_rho)*z[, s]; // multi_normal
+     // multi t
+     beta[, s] = mu_beta[, 1] + sqrt(nu_help/nu)*(L_rho * z[, s]);
   }
 }
 
@@ -41,22 +43,21 @@ model {
   alpha ~ student_t(1, 0, 100);
   mu_beta[, 1] ~ student_t(1, 0, 10);
   sigma ~ cauchy(0, 5);
-  sigma_beta ~ cauchy(0, 5);
-  L_rho ~ lkj_corr_cholesky(2);
+  (nu_help-2) ~ exponential(0.5);
+  nu ~ chi_square(nu_help);
 
   for(s in 1:Ns) {
     z[, s] ~ normal(0, 1);
   }
+
+  L_rho ~ lkj_corr_cholesky(2);
 }
 
 generated quantities {
   matrix [N, Ns] log_lik2 [Ntq+Ntd];
   matrix [N, Ntq+Ntd] log_lik;
   corr_matrix[Ntq+Ntd] rho;
-  matrix[Ntq+Ntd, Ntq+Ntd] SD_cov;
-
   rho = multiply_lower_tri_self_transpose(L_rho);
-  SD_cov = quad_form_diag(rho, sigma_beta);
 
   for(i in 1:N) {
     for(s in 1:Ns) {
