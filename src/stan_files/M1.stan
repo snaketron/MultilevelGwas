@@ -15,10 +15,8 @@ parameters {
   vector [Ntq+Ntd] grand_mu_beta;
   vector <lower = 0> [Ntq] sigma;
   vector <lower = 0> [Ntq+Ntd] sigma_beta;
-  // vector <lower = 0> [Ntq+Ntd] nu;
-  // vector <lower = 2> [Ntq+Ntd] nu_help;
-  real <lower = 0> nu;
-  real <lower = 2> nu_help;
+  vector <lower = 0> [Ntq+Ntd] nu;
+  vector <lower = 2> [Ntq+Ntd] nu_help;
   matrix [Ns, Nk] z [Ntq+Ntd];
   matrix [Ntq+Ntd, Ns] grand_z;
 
@@ -30,10 +28,9 @@ transformed parameters {
 
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
-      // multi t with separate df per trait
-      // mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t,s];
-      // multi t
-      mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help/nu)*grand_z[t,s];
+      mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t,s];
+      // single nu
+      // mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help/nu)*grand_z[t,s];
     }
   }
 
@@ -66,7 +63,6 @@ model {
 
   sigma ~ cauchy(0, 5);
   sigma_beta ~ cauchy(0, 5);
-  // nu ~ gamma(2.0, 0.1);
   (nu_help-2) ~ exponential(0.5);
   nu ~ chi_square(nu_help);
 

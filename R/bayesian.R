@@ -11,15 +11,6 @@ runBayesianInference <- function(gt.data,
                                  dot.param,
                                  comparison) {
 
-  # extra conversion
-  Yd <- c()
-  if(gt.data$Ntd > 0) {
-    for(i in 1:gt.data$Ntd) {
-      Yd <- cbind(Yd, as.numeric(gt.data$Yd[, i]))
-    }
-    gt.data$Yd <- Yd
-  }
-
 
   data.list <- list(N = gt.data$N,
                     Ns = gt.data$Ns,

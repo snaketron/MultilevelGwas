@@ -12,8 +12,8 @@ parameters {
   vector [Ntq+Ntd] alpha;
   vector <lower = 0> [Ntq] sigma;
   matrix [Ntq+Ntd, 1] mu_beta;
-  real <lower = 0> nu;
-  real <lower = 2> nu_help;
+  vector <lower = 0> [Ntq+Ntd] nu;
+  vector <lower = 2> [Ntq+Ntd] nu_help;
   matrix [Ntq+Ntd, Ns] z;
   cholesky_factor_corr [Ntq+Ntd] L_rho;
 }
@@ -21,8 +21,7 @@ parameters {
 transformed parameters {
   matrix [Ntq+Ntd, Ns] beta;
   for(s in 1:Ns) {
-     // multi t
-     beta[, s] = mu_beta[, 1] + sqrt(nu_help/nu)*(L_rho * z[, s]);
+     beta[, s] = mu_beta[, 1] + sqrt(nu_help ./ nu) .* (L_rho * z[, s]);
   }
 }
 

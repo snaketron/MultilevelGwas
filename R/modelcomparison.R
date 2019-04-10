@@ -45,6 +45,7 @@ runModelComparison <- function(genotype,
   ps <- vector(mode = "list", length = length(models))
   names(ps) <- models
 
+
   cat("1) Bayesian inference ... \n")
   # run each model
   for(i in 1:length(models)) {
@@ -121,10 +122,10 @@ getIC <- function(ps) {
 # Function:
 # Posterior prediction
 getPpcMc <- function(ps,
-                   gt.data,
-                   models,
-                   hdi.level,
-                   cores = 6) {
+                     gt.data,
+                     models,
+                     hdi.level,
+                     cores = 6) {
 
 
   # multicore classification
@@ -132,17 +133,14 @@ getPpcMc <- function(ps,
   doParallel::registerDoParallel(cl)
 
 
-  runPpc <- function(p, gt.data,
+  runPpc <- function(ext, gt.data,
                      model, hdi.level) {
 
-    # get posterior
-    ext <- data.frame(rstan::extract(object = p))
-    ext <- ext[, regexpr(pattern = "z\\.|log_lik",
-                         text = colnames(ext)) == -1]
+    # subsample get posterior
+    ext <- data.frame(ext)
     ext <- ext[sample(x = 1:nrow(ext),
                       size = min(c(500, nrow(ext))),
                       replace = TRUE), ]
-
 
 
     ppc.out <- c()
@@ -182,7 +180,9 @@ getPpcMc <- function(ps,
                        .export = c("getHdi",
                                    "getPpcLowestLevel",
                                    "getPpcMidLevel")) %dopar%
-                 runPpc(p = ps[[i]],
+                 runPpc(p = rstan::extract(object = ps[[i]],
+                                           pars = c("z", "log_lik", "log_lik2"),
+                                           include = FALSE),
                         gt.data = gt.data,
                         model= models[i],
                         hdi.level = hdi.level))
@@ -207,14 +207,14 @@ getPpc <- function(ps,
 
 
   ppc.list <- vector(mode = "list", length = length(ps))
-  names(ppc.list) <- names(ps)
+  names(ppc.list) <- models
 
 
   for(i in 1:length(models)) {
     # get posterior
-    ext <- data.frame(rstan::extract(object = ps[[i]]))
-    ext <- ext[, regexpr(pattern = "z\\.|log_lik",
-                         text = colnames(ext)) == -1]
+    ext <- data.frame(rstan::extract(object = ps[[i]],
+                                     pars = c("z", "log_lik", "log_lik2"),
+                                     include = FALSE))
     ext <- ext[sample(x = 1:nrow(ext),
                       size = min(c(500, nrow(ext))),
                       replace = TRUE), ]
@@ -222,7 +222,7 @@ getPpc <- function(ps,
 
     ppc.out <- c()
     for(s in 1:gt.data$Ns) {
-      cat(models[i], ":", s, "/", gt.data$Ns, "\n", sep = '')
+      cat(models[i], ":", s, "/", gt.data$Ns, ' ', sep = '')
 
       ppc.out <- rbind(ppc.out, getPpcLowestLevel(ext = ext,
                                                   gt.data = gt.data,
@@ -230,7 +230,7 @@ getPpc <- function(ps,
                                                   hdi.level = hdi.level,
                                                   s = s))
 
-      cat("A \n")
+      cat(". \n")
 
       if(!models[i] %in% c("M0", "M0c")) {
         ppc.out <- rbind(ppc.out, getPpcMidLevel(ext = ext,

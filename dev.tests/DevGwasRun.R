@@ -14,21 +14,21 @@ require(Biostrings)
 
 
 
-data.list <- get(load(file = "~/MiceGwas/output/posterior/tnf/data.list.RData"))
+data.list <- get(load(file = "~/MiceGwas/output/posterior/vsv/data.list.RData"))
 genotype <- data.list$X[, 1:300]
 genotype[1, 1] <- as.character(genotype[1, 1])
-# traits <- data.list$Yq
-traits <- cbind(data.list$Yc, data.list$Yd) # only for TNF
+traits <- data.list$Yq
+# traits <- cbind(data.list$Yq, data.list$Yd) # only for vsva
 strains <- data.list$K
 
 
 
 mc <- runModelComparison(genotype = genotype,
                          traits = traits,
-                         # trait.type = c("Q", "Q"),
-                         trait.type = c("Q", "Q", "Q", "D"),
+                         trait.type = c("Q", "Q"),
+                         # trait.type = c("Q", "Q", "Q", "D"),
                          strains = strains,
-                         models = c("M0", "M1", "M0c", "M1c"),
+                         models = c("M0", "M1"),
                          mcmc.chains = 4,
                          mcmc.steps = 1500,
                          mcmc.warmup = 750,
@@ -36,6 +36,6 @@ mc <- runModelComparison(genotype = genotype,
                          hdi.level = 0.95,
                          adapt_delta = 0.95,
                          max_treedepth = 10)
-save(mc, file = "dev.tests/tnf.300.RData")
+save(mc, file = "dev.tests/vsv.300.RData")
 cat("DONE \n")
 

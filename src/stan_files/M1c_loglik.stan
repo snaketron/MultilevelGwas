@@ -15,8 +15,8 @@ parameters {
   matrix [Ntq+Ntd, 1] grand_mu_beta;
   vector <lower = 0> [Ntq] sigma;
   vector <lower = 0> [Ntq+Ntd] sigma_beta;
-  real <lower = 0> nu;
-  real <lower = 2> nu_help;
+  vector <lower = 0> [Ntq+Ntd] nu;
+  vector <lower = 2> [Ntq+Ntd] nu_help;
   matrix [Ns, Nk] z [Ntq+Ntd];
   matrix [Ntq+Ntd, Ns] grand_z;
   cholesky_factor_corr [Ntq+Ntd] L_rho;
@@ -28,8 +28,7 @@ transformed parameters {
 
 
   for(s in 1:Ns) {
-    // multi t
-    mu_beta[, s] = grand_mu_beta[, 1] + sqrt(nu_help/nu) * (L_rho * grand_z[, s]);
+    mu_beta[, s] = grand_mu_beta[, 1] + sqrt(nu_help ./ nu) .* (L_rho * grand_z[, s]);
    }
 
 

@@ -45,10 +45,9 @@ runMLgwas <- function(genotype,
 
 
   # TODO: uncomment in final version
-  # get the appropriate stan model
-  # stan.model <- getStanModel(model.name = model,
-  #                            comparison.mode = FALSE)
-  stan.model <- getStanModelDebug(model.name = model)
+  stan.model <- getStanModelDebug(model.name = model,
+                                  comparison = FALSE)
+
 
 
   cat("======== Bayesian Inference ======== \n")
@@ -58,53 +57,46 @@ runMLgwas <- function(genotype,
                             mcmc.warmup = mcmc.warmup,
                             cores = cores,
                             stan.model = stan.model,
-                            dot.param = dot.param)
+                            dot.param = dot.param,
+                            comparison = FALSE)
 
 
 
-  # cat("======== Statistical Learning ======== \n")
-  # s <- runStatLearn(gt.data = gt.data,
-  #                   method = stat.learn.method,
-  #                   cv.steps = cv.steps,
-  #                   hdi.level = hdi.level,
-  #                   cores = cores,
-  #                   dot.param = dot.param)
+  cat("======== Statistical Learning ======== \n")
+  s <- runStatLearn(gt.data = gt.data,
+                    method = stat.learn.method,
+                    cv.steps = cv.steps,
+                    hdi.level = hdi.level,
+                    cores = cores,
+                    dot.param = dot.param)
 
 
-  # cat("======== Collecting Results ======== \n")
-  # o <- getScores(p = p, s = s$results,
-  #                hdi.level = hdi.level,
-  #                gt.data = gt.data)
-  #
-  #
-  # # format scores
-  # o <- do.call(rbind, o)
-  # o <- o[, c("site", "ref", "alt", "refN", "altN", "p", "mean",
-  #            "se_mean", "sd", "X2.5.", "X97.5.", "n_eff", "Rhat",
-  #            "ca", "ca.L", "ca.H", "k", "k.L", "k.H")]
-  # colnames(o) <- c("site", "ref", "alt", "refN", "altN", "phenotype.id",
-  #                  "beta.mean", "beta.se", "beta.sd", "beta.hdi.low",
-  #                  "beta.hdi.high", "Neff", "Rhat",
-  #                  "ca.mean", "ca.hdi.low", "ca.hdi.high",
-  #                  "kappa.mean", "kappa.hdi.low", "kappa.hdi.high")
-  #
-  #
-  #
-  # cat("======== Pareto Optimization ======== \n")
-  # o <- getParetoScores(scores = o)
-  #
-  #
-  #
-  # # ppc
-  # cat("======== Posterior Prediction ======== \n")
-  # ppc <- getPpc(posterior = p$posterior,
-  #               gt.data = gt.data,
-  #               hdi.level = hdi.level)
 
-  return(p)
+  cat("======== Pareto Optimization ======== \n")
+  r <- getParetoRanks(p = p, s = s,
+                      model = model,
+                      hdi.level = hdi.level)
 
-  return (list(scores = o,
+
+
+  cat("======== Collecting Results ======== \n")
+  scores <- getScores(p = p, s = s, r = r,
+                      model = model,
+                      gt.data = gt.data,
+                      hdi.level = hdi.level)
+
+
+
+  cat("======== Posterior Predictive Checks ======== \n")
+  ppc <- getPpc(ps = list(p = p),
+                gt.data = gt.data,
+                models = model,
+                hdi.level = hdi.level)
+
+
+
+  return (list(scores = scores,
                ppc = ppc,
-               complete.posterior = p$posterior))
+               gt.data = gt.data))
 }
 

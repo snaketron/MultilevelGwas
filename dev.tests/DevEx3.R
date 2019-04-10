@@ -93,23 +93,6 @@ mc.ex3 <- runModelComparison(genotype = d$genotype,
                              adapt_delta = 0.95,
                              max_treedepth = 10)
 
-
-
-
-x <- data.frame(rstan::extract(object = mc.ex3$ps$M0, pars = "log_lik2"))
-for(t in 1:3) {
-  print(loo::loo(x = as.matrix(x[, which(regexpr(pattern = paste("log_lik2\\.", t, sep = ''),
-                                                 text = colnames(x)) != -1)])))
-}
-x.loo <- loo::extract_log_lik(stanfit = mc.ex3$ps$M0, parameter_name = "log_lik2")
-loo::loo(x = x.loo)
-
-m1 <- as.matrix(x)
-which(regexpr(pattern = "log_lik2\\.1", text = colnames(x)) != -1)
-
-
-
-
 save(mc.ex3, file = "dev.tests/ex3/mc.ex3.RData")
 
 
@@ -120,14 +103,20 @@ s <- data.frame(summary(mc.ex3$ps$M1)$summary)
 s$par <- rownames(s)
 
 
+summary(mc.ex3$ps$M0, par = c("nu", "nu_help"))$summary
+summary(mc.ex3$ps$M0c, par = c("nu", "nu_help"))$summary
+summary(mc.ex3$ps$M1, par = c("nu", "nu_help"))$summary
+summary(mc.ex3$ps$M1c, par = c("nu", "nu_help"))$summary
 
-s <- summary(mc.ex3$ps$M1, par = c("nu", "nu_help", "grand_mu_beta", "mu_beta"))$summary
-s["nu", "mean"]
 
-getTMoments(nu = s["nu", "mean"], mu = s["grand_mu_beta[1]", "mean"])
-plot(density(summary(mc.ex3$ps$M1, par = "mu_beta")$summary[, "mean"]))
-s["nu", "mean"]
-s["nu_help", "mean"]
+summary(mc.ex3$ps$M0, par = c("beta"))$summary[, "mean"]
+summary(mc.ex3$ps$M0c, par = c("beta"))$summary
+summary(mc.ex3$ps$M1, par = c("mu_beta"))$summary
+summary(mc.ex3$ps$M1c, par = c("mu_beta"))$summary
+
+plot(x = summary(mc.ex3$ps$M0, par = c("beta"))$summary[, "mean"],
+     y = summary(mc.ex3$ps$M1, par = c("mu_beta"))$summary[, "mean"])
+abline(0, 1)
 
 
 

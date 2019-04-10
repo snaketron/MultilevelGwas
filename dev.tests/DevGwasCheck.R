@@ -19,69 +19,60 @@ rm(mc)
 
 
 
-# model comparison
+# # model comparison
+# # VSV
+# loo::compare(mc.vsv$ic$loo$M0, mc.vsv$ic$loo$M0c)
+# loo::compare(mc.vsv$ic$loo$M0, mc.vsv$ic$loo$M1)
+# loo::compare(mc.vsv$ic$loo$M0, mc.vsv$ic$loo$M1c)
+# loo::compare(mc.vsv$ic$loo$M0c, mc.vsv$ic$loo$M1)
+# loo::compare(mc.vsv$ic$loo$M0c, mc.vsv$ic$loo$M1c)
+# loo::compare(mc.vsv$ic$loo$M1, mc.vsv$ic$loo$M1c)
+#
+# # LCMV
+# loo::compare(mc.lcmv$ic$loo$M0, mc.lcmv$ic$loo$M0c)
+# loo::compare(mc.lcmv$ic$loo$M0, mc.lcmv$ic$loo$M1)
+# loo::compare(mc.lcmv$ic$loo$M0, mc.lcmv$ic$loo$M1c)
+# loo::compare(mc.lcmv$ic$loo$M0c, mc.lcmv$ic$loo$M1)
+# loo::compare(mc.lcmv$ic$loo$M0c, mc.lcmv$ic$loo$M1c)
+# loo::compare(mc.lcmv$ic$loo$M1, mc.lcmv$ic$loo$M1c)
+#
+# # TNF
+# loo::compare(mc.tnf$ic$loo$M0, mc.tnf$ic$loo$M0c)
+# loo::compare(mc.tnf$ic$loo$M0, mc.tnf$ic$loo$M1)
+# loo::compare(mc.tnf$ic$loo$M0, mc.tnf$ic$loo$M1c)
+# loo::compare(mc.tnf$ic$loo$M0c, mc.tnf$ic$loo$M1)
+# loo::compare(mc.tnf$ic$loo$M0c, mc.tnf$ic$loo$M1c)
+# loo::compare(mc.tnf$ic$loo$M1, mc.tnf$ic$loo$M1c)
 
-# VSV
-loo::compare(mc.vsv$ic$loo$M0, mc.vsv$ic$loo$M0c)
-loo::compare(mc.vsv$ic$loo$M0, mc.vsv$ic$loo$M1)
-loo::compare(mc.vsv$ic$loo$M0, mc.vsv$ic$loo$M1c)
-loo::compare(mc.vsv$ic$loo$M0c, mc.vsv$ic$loo$M1)
-loo::compare(mc.vsv$ic$loo$M0c, mc.vsv$ic$loo$M1c)
-loo::compare(mc.vsv$ic$loo$M1, mc.vsv$ic$loo$M1c)
-
-# LCMV
-loo::compare(mc.lcmv$ic$loo$M0, mc.lcmv$ic$loo$M0c)
-loo::compare(mc.lcmv$ic$loo$M0, mc.lcmv$ic$loo$M1)
-loo::compare(mc.lcmv$ic$loo$M0, mc.lcmv$ic$loo$M1c)
-loo::compare(mc.lcmv$ic$loo$M0c, mc.lcmv$ic$loo$M1)
-loo::compare(mc.lcmv$ic$loo$M0c, mc.lcmv$ic$loo$M1c)
-loo::compare(mc.lcmv$ic$loo$M1, mc.lcmv$ic$loo$M1c)
-
-# TNF
-loo::compare(mc.tnf$ic$loo$M0, mc.tnf$ic$loo$M0c)
-loo::compare(mc.tnf$ic$loo$M0, mc.tnf$ic$loo$M1)
-loo::compare(mc.tnf$ic$loo$M0, mc.tnf$ic$loo$M1c)
-loo::compare(mc.tnf$ic$loo$M0c, mc.tnf$ic$loo$M1)
-loo::compare(mc.tnf$ic$loo$M0c, mc.tnf$ic$loo$M1c)
-loo::compare(mc.tnf$ic$loo$M1, mc.tnf$ic$loo$M1c)
-
-
-loo::extract_log_lik(mc.vsv$ps$M0, parameter_name = "log_lik2")
-
-
-# x <- getPpcMc(ps = mc.tnf.1$ps,
-#               gt.data = mc.tnf.1$gt.data,
-#               models = names(mc.tnf.1$ps),
-#               hdi.level = 0.95, cores = 3)
-# mc.tnf.1$ppc.alt <- x
-# save(mc.tnf.1, file = "~/MLgwas/dev.tests/tnf.300.RData")
-
-
-
-# x <- getPpcMc(ps = mc.tnf.2$ps,
-#               gt.data = mc.tnf.2$gt.data,
-#               models = names(mc.tnf.2$ps),
-#               hdi.level = 0.95, cores = 6)
-# mc.tnf.2$ppc.alt <- x
-# save(mc.tnf.2, file = "~/MLgwas/dev.tests/tnf.cov.300.RData")
 
 
 
 # x <- getPpcMc(ps = mc.vsv$ps,
 #               gt.data = mc.vsv$gt.data,
 #               models = names(mc.vsv$ps),
-#               hdi.level = 0.95, cores = 6)
+#               hdi.level = 0.95,
+#               cores = 4)
 # mc.vsv$ppc.alt <- x
 # save(mc.vsv, file = "~/MLgwas/dev.tests/vsv.300.RData")
 
 
-
-# x <- getPpcMc(ps = mc.lcmv$ps,
-#               gt.data = mc.lcmv$gt.data,
-#               models = names(mc.lcmv$ps),
-#               hdi.level = 0.95, cores = 6)
+# x <- getPpc(ps = mc.lcmv$ps,
+#             gt.data = mc.lcmv$gt.data,
+#             models = names(mc.lcmv$ps),
+#             hdi.level = 0.95)
 # mc.lcmv$ppc.alt <- x
 # save(mc.lcmv, file = "~/MLgwas/dev.tests/lcmv.300.RData")
+
+
+x <- getPpc(ps = mc.tnf$ps,
+            gt.data = mc.tnf$gt.data,
+            models = names(mc.tnf$ps),
+            hdi.level = 0.95)
+mc.tnf$ppc.alt <- x
+save(mc.tnf, file = "~/MLgwas/dev.tests/tnf.300.RData")
+
+
+
 
 
 
@@ -96,6 +87,18 @@ ppc.lcmv <- rbind(mc.lcmv$ppc$M0, mc.lcmv$ppc$M1,
 # tnf
 ppc.tnf <- rbind(mc.tnf$ppc$M0, mc.tnf$ppc$M1,
                  mc.tnf$ppc$M0c, mc.tnf$ppc$M1c)
+
+
+# form PPC-alt data
+# vsv
+ppc.vsv <- rbind(mc.vsv$ppc.alt$M0, mc.vsv$ppc.alt$M1,
+                 mc.vsv$ppc.alt$M0c, mc.vsv$ppc.alt$M1c)
+# lcmv
+ppc.lcmv <- rbind(mc.lcmv$ppc.alt$M0, mc.lcmv$ppc.alt$M1,
+                  mc.lcmv$ppc.alt$M0c, mc.lcmv$ppc.alt$M1c)
+# tnf
+ppc.tnf <- rbind(mc.tnf$ppc.alt$M0, mc.tnf$ppc.alt$M1,
+                 mc.tnf$ppc.alt$M0c, mc.tnf$ppc.alt$M1c)
 
 
 
@@ -117,8 +120,6 @@ ppc.tnf$e <- abs(ppc.tnf$y.real.mean-ppc.tnf$y.ppc.mean)
 
 
 # PPC density
-
-
 getPpcViz <- function(ppc, nrow) {
   # # Prediction: individual-level
   # ppc.gi <- ppc[ppc$s == 1, ]
@@ -148,7 +149,7 @@ getPpcViz <- function(ppc, nrow) {
   #   theme_bw()+
   #   ggtitle(label = "Prediction:  Trait (strain-level), Param (lowest-level)")
 
-  g2 <- ggplot(data = ppc[ppc$prediction.level == "strain-level", ])+
+  g2 <- ggplot(data = ppc[ppc$prediction.level == "strain", ])+
     facet_wrap(facets = t~model, nrow = nrow, scales = "free")+
     geom_density2d(aes(y = y.ppc.mean, x = y.real.mean), col = "orange")+
     geom_abline(slope = 1, intercept = 0)+
@@ -166,8 +167,8 @@ getPpcViz <- function(ppc, nrow) {
   #   geom_point(aes(y = y.ppc.mean, x = y.real.mean), shape = 21, fill = "white")+
   #   theme_bw()
 
-  g3 <- ggplot(data = ppc[ppc$prediction.level == "snp-level" &
-                            ppc$parameter.level == "lowest", ])+
+  g3 <- ggplot(data = ppc[ppc$prediction.level == "snp" &
+                            ppc$parameter.level == "low", ])+
     facet_wrap(facets = t~model, nrow = nrow, scales = "free")+
     geom_density2d(aes(y = y.ppc.mean, x = y.real.mean), col = "orange")+
     geom_abline(slope = 1, intercept = 0)+
@@ -184,8 +185,8 @@ getPpcViz <- function(ppc, nrow) {
   #   geom_point(aes(y = y.ppc.mean, x = y.real.mean), shape = 21, fill = "white")+
   #   theme_bw()
 
-  g4 <-  ggplot(data = ppc[ppc$prediction.level == "snp-level" &
-                             ppc$parameter.level == "lowest-plus-one", ])+
+  g4 <-  ggplot(data = ppc[ppc$prediction.level == "snp" &
+                             ppc$parameter.level == "low", ])+
     facet_wrap(facets = t~model, nrow = nrow, scales = "free")+
     geom_density2d(aes(y = y.ppc.mean, x = y.real.mean), col = "orange")+
     geom_abline(slope = 1, intercept = 0)+
@@ -240,8 +241,8 @@ ggsave(filename = "dev.tests/plots/tnf.snp.mid.pdf",
 # Errors #
 
 getViolinSummary <- function(ppc) {
-  ppc <- ppc[ppc$parameter.level == "lowest"
-             & ppc$prediction.level == "individual-level", ]
+  ppc <- ppc[ppc$parameter.level == "low"
+             & ppc$prediction.level == "individual", ]
   ppc$e <- abs(ppc$y.ppc.mean-ppc$y.real.mean)
 
   summary.i <- aggregate(e~i+k+t+model, data = ppc, FUN = mean)
@@ -277,8 +278,8 @@ getViolinSummary <- function(ppc) {
 
 getErrorSummary <- function(ppc, hdi.level) {
 
-  ppc <- ppc[ppc$parameter.level == "lowest"
-             & ppc$prediction.level == "individual-level", ]
+  ppc <- ppc[ppc$parameter.level == "low"
+             & ppc$prediction.level == "individual", ]
   ppc$e <- abs(ppc$y.ppc.mean-ppc$y.real.mean)
 
 
@@ -385,9 +386,6 @@ getErrorSummary <- function(ppc, hdi.level) {
     xlab(label = '')+
     ylab(label = "Mean Error (95% HDI)")+
     guides(colour = guide_legend(nrow = 2))
-
-
-
 }
 
 
@@ -396,5 +394,10 @@ getErrorSummary <- function(ppc, hdi.level) {
 
 getViolinSummary(ppc = ppc.vsv)
 getViolinSummary(ppc = ppc.lcmv)
+getViolinSummary(ppc = ppc.tnf)
 
+
+getErrorSummary(ppc = ppc.vsv, hdi.level = 0.95)
+getErrorSummary(ppc = ppc.lcmv, hdi.level = 0.95)
+getErrorSummary(ppc = ppc.tnf, hdi.level = 0.95)
 

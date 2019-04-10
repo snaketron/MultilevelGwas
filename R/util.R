@@ -65,8 +65,9 @@ getStanData <- function(genotype,
     getX <- function(x) {
       xs <- unique(x)
       X <- numeric(length = length(x))
-      xs.dir <- sample(x = c(1, -1), size = 2, replace = FALSE)
-      # xs.dir <- c(1, -1)
+      xs.dir <- sample(x = c(1, -1),
+                       size = 2,
+                       replace = FALSE)
 
       # map genotypes to 1s and -1s
       for(i in 1:length(xs)) {
@@ -75,10 +76,20 @@ getStanData <- function(genotype,
 
       xs <- c(xs, NA)
 
+      ref <- unique(x[X == 1])
+      alt <- unique(x[X == -1])
+      if(length(ref) == 0) {
+        ref <- NA
+      }
+      if(length(alt) == 0) {
+        alt <- NA
+      }
+
       # xmap
-      xmap <- data.frame(ref = xs[1], alt = xs[2],
-                         refN = sum(X == xs[1]),
-                         altN = sum(X == xs[2]))
+      xmap <- data.frame(ref = ref,
+                         alt = alt,
+                         refN = sum(X == 1),
+                         altN = sum(X == -1))
 
       # return
       return(list(X = X, xmap = xmap))
@@ -119,9 +130,22 @@ getStanData <- function(genotype,
       Yd <- matrix(data = 0, ncol = 0, nrow = nrow(X))
     }
 
+
+    # extra conversion
+    temp.Yd <- c()
+    if(ncol(Yd) > 0) {
+      for(i in 1:ncol(Yd)) {
+        temp.Yd <- cbind(temp.Yd, as.numeric(Yd[, i]))
+      }
+      Yd <- temp.Yd
+      rm(temp.Yd)
+    }
+
+
+
     K <- as.numeric(as.factor(strains))
     s <- list(X = X,
-              Y = f.data$traits,
+              Y = cbind(Yq, Yd),
               K = K,
               Yq = Yq,
               Yd = Yd,
@@ -137,6 +161,7 @@ getStanData <- function(genotype,
 
     return (s)
   }
+
 
 
   # genphen data
@@ -395,78 +420,13 @@ getStanModelDebug <- function(model.name,
   dir <- ''
 
   if(comparison) {
-
-    # M0
-    if(model.name == "M0") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M0_loglik.stan", sep = ''))
-    }
-    # M0c
-    if(model.name == "M0c") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M0c_loglik.stan", sep = ''))
-    }
-
-    # M1
-    if(model.name == "M1") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M1_loglik.stan", sep = ''))
-    }
-    # M1c
-    if(model.name == "M1c") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files", dir,
-                                                   "/M1c_loglik.stan", sep = ''))
-    }
-
-    # M2
-    if(model.name == "M2") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M2_loglik.stan", sep = ''))
-    }
-    # M2c
-    if(model.name == "M2c") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M2c_loglik.stan", sep = ''))
-    }
-
+    model.name <- paste("src/stan_files/", dir, model.name, "_loglik.stan", sep = '')
+    stan.model <- rstan::stan_model(file = model.name)
   }
   else {
-
-    # M0
-    if(model.name == "M0") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M0.stan", sep = ''))
-    }
-    # M0c
-    if(model.name == "M0c") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M0c.stan", sep = ''))
-    }
-
-    # M1
-    if(model.name == "M1") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M1.stan", sep = ''))
-    }
-    # M1c
-    if(model.name == "M1c") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files", dir,
-                                                   "/M1c.stan", sep = ''))
-    }
-
-    # M2
-    if(model.name == "M2") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M2.stan", sep = ''))
-    }
-    # M2c
-    if(model.name == "M2c") {
-      stan.model <- rstan::stan_model(file = paste("src/stan_files/", dir,
-                                                   "/M2c.stan", sep = ''))
-    }
-
+    model.name <- paste("src/stan_files/", dir, model.name, ".stan", sep = '')
+    stan.model <- rstan::stan_model(file = model.name)
   }
-
 
   return (stan.model)
 }
@@ -478,6 +438,11 @@ getStanModelPars <- function(model.name,
   if(comparison) {
     # M0
     if(model.name == "M0") {
+      pars <- c("alpha", "beta", "sigma",
+                "mu_beta", "log_lik",
+                "log_lik2", "nu", "nu_help")
+    }
+    if(model.name == "mM0") {
       pars <- c("alpha", "beta", "sigma",
                 "mu_beta", "log_lik",
                 "log_lik2", "nu", "nu_help")
@@ -502,65 +467,30 @@ getStanModelPars <- function(model.name,
                 "log_lik2", "rho", "nu",
                 "nu_help")
     }
-
-    # M2
-    if(model.name == "M2") {
-      pars <- c("alpha", "beta", "mu_beta",
-                "grand_mu_beta", "sigma",
-                "sigma_trait", "mean_trait",
-                "sigma_beta", "log_lik",
-                "nu", "nu_help")
-    }
-    if(model.name == "M2c") {
-      pars <- c("alpha", "beta", "mu_beta",
-                "grand_mu_beta", "sigma",
-                "sigma_trait", "mean_trait",
-                "sigma_beta", "log_lik",
-                "log_lik2", "rho",
-                "nu", "nu_help")
-    }
   }
   else {
     # M0
     if(model.name == "M0") {
       pars <- c("alpha", "beta", "sigma",
-                "mu_beta",
-                "nu", "nu_help")
+                "mu_beta", "nu", "nu_help")
     }
     if(model.name == "M0c") {
       pars <- c("alpha", "beta", "sigma",
-                "mu_beta", "rho",
-                "nu", "nu_help")
+                "mu_beta", "rho", "nu",
+                "nu_help")
     }
 
     # M1
     if(model.name == "M1") {
       pars <- c("alpha", "beta", "mu_beta",
                 "grand_mu_beta", "sigma",
-                "sigma_beta",
-                "nu", "nu_help")
+                "sigma_beta", "nu", "nu_help")
     }
     if(model.name == "M1c") {
       pars <- c("alpha", "beta", "mu_beta",
                 "grand_mu_beta", "sigma",
-                "sigma_beta", "rho",
-                "nu", "nu_help")
-    }
-
-    # M2
-    if(model.name == "M2") {
-      pars <- c("alpha", "beta", "mu_beta",
-                "grand_mu_beta", "sigma",
-                "sigma_trait", "mean_trait",
-                "sigma_beta",
-                "nu", "nu_help")
-    }
-    if(model.name == "M2c") {
-      pars <- c("alpha", "beta", "mu_beta",
-                "grand_mu_beta", "sigma",
-                "sigma_trait", "mean_trait",
-                "sigma_beta", "rho",
-                "nu", "nu_help")
+                "sigma_beta", "rho", "nu",
+                "nu_help")
     }
   }
 
@@ -1577,7 +1507,6 @@ checkInputPhyloBias <- function(input.kinship.matrix,
 
 
 
-
 # Function:
 # If an object of type DNAMultipleAlignment
 convertMsaToGenotype <- function(genotype) {
@@ -1590,33 +1519,53 @@ convertMsaToGenotype <- function(genotype) {
 
 
 
-
 # Function:
 # Combine data from Bayesian inference and statistical learning
-getScores <- function(p, s,
-                      gt.data,
-                      hdi.level) {
-  probs <- c((1-hdi.level)/2, 1-(1-hdi.level)/2)
-  d.full <- data.frame(summary(p$posterior, probs = probs)$summary,
-                       stringsAsFactors = FALSE)
-  d.full$par <- rownames(d.full)
+# p = posterior
+# s = statistical learning
+# r = pareto ranks
+getScores <- function(p, s, r, model, gt.data, hdi.level) {
+
+  # s.summary
+  s.summary <- c()
+  for(t in 1:length(s)) {
+    s.summary <- rbind(s.summary, s[[t]]$summary)
+  }
+  s <- s.summary
+  rm(s.summary)
+
+
+  # b.summary
+  probs <- c(0.5, (1-hdi.level)/2, 1-(1-hdi.level)/2)
+
+  if(model == "M0" | model == "M0c") {
+    pars <- c("beta")
+  }
+  if(model == "M1" | model == "M1c") {
+    pars <- c("mu_beta")
+  }
+
+  d <- summary(p, probs = probs, pars = pars)$summary
+  d <- data.frame(d)
+  d$par <- rownames(d)
+  d$par <- gsub(pattern = "mu_beta|beta|\\[|\\]",
+                replacement = '', x = d$par)
+  key <- do.call(rbind, strsplit(x = d$par, split = '\\,'))
+  d$trait <- as.numeric(key[, 1])
+  d$site <- as.numeric(key[, 2])
+  d$par <- NULL
+
+  colnames(d) <- c("beta.mean", "beta.mean.se", "beta.sd",
+                   "beta.median", "beta.L", "beta.H",
+                   "neff", "rhat", "trait", "site")
 
 
   xmap <- gt.data$xmap
-  scores <- vector(mode = "list", length = ncol(gt.data$Y))
-  for(i in 1:ncol(gt.data$Y)) {
-    s.p <- s[s$p == i, ]
-
-    key <- paste("beta\\[", i, "\\,", sep = '')
-    d <- d.full[which(regexpr(pattern = key, text = d.full$par) != -1
-                      & regexpr(pattern = "alpha|sigma|nu|mu|tau|z",
-                                text = d.full$par) == -1), ]
-    d$i <- i
-    d$i <- gsub(pattern = key, replacement = '', x = d$par)
-    d$i <- gsub(pattern = "\\]", replacement = '', x = d$i)
-    d$i <- as.numeric(d$i)
-    scores[[i]] <- cbind(xmap, d, s[s$p == i, ])
-  }
+  scores <- merge(x = xmap, y = d, by = "site")
+  scores <- merge(x = scores, y = s, by = c("trait", "site"))
+  scores <- merge(x = scores, y = r, by = c("trait", "site"))
+  scores <- scores[order(scores$trait, scores$site,
+                         decreasing = FALSE), ]
 
   return (scores)
 }
@@ -1656,5 +1605,46 @@ getTMoments <- function(nu, mu) {
   return (list(t.mean = t.mean, t.var = t.var))
 }
 
+
+
+
+# Description:
+# Given a confusion matrix table(predicted, real), compute the Cohen's
+# kappa statistics. Cohen makes the following distinction between the
+# different kappa ranges.
+getKappa <- function(predicted, real, aas) {
+
+  # should not occur, just in case check this
+  # if(length(unique(aas)) != length(unique(c(predicted, real)))) {
+  #   stop("Error while building confusion matrix (getKappa)")
+  # }
+
+  # Build 2x2 confusion matrix
+  buildConfusionMatrix <- function(predicted, real) {
+    cm <- matrix(data = 0, nrow = 2, ncol = 2)
+    cm[1, 1] <- length(intersect(which(real %in% aas[1]),
+                                 which(predicted %in% aas[1])))
+    cm[2, 2] <- length(intersect(which(real %in% aas[2]),
+                                 which(predicted %in% aas[2])))
+    cm[2, 1] <- length(intersect(which(real %in% aas[1]),
+                                 which(!predicted %in% aas[1])))
+    cm[1, 2] <- length(intersect(which(real %in% aas[2]),
+                                 which(!predicted %in% aas[2])))
+    return (cm)
+  }
+
+  cm <- buildConfusionMatrix(predicted = predicted, real = real)
+
+  ca.exp <- (sum(cm[1, ])*sum(cm[, 1])+sum(cm[2, ])*sum(cm[, 2]))/sum(cm)^2
+  ca <- (cm[1, 1]+cm[2, 2])/sum(cm)
+  kappa <- (ca-ca.exp)/(1-ca.exp)
+
+  # if NaN, CA_exp = 1
+  if(is.nan(x = kappa) == TRUE) {
+    kappa <- 0
+  }
+
+  return (kappa)
+}
 
 
