@@ -206,10 +206,7 @@ getPpc <- function(ps,
                    hdi.level) {
 
 
-  ppc.list <- vector(mode = "list", length = length(ps))
-  names(ppc.list) <- models
-
-
+  ppc.out <- c()
   for(i in 1:length(models)) {
     # get posterior
     ext <- data.frame(rstan::extract(object = ps[[i]],
@@ -219,32 +216,23 @@ getPpc <- function(ps,
                       size = min(c(500, nrow(ext))),
                       replace = TRUE), ]
 
+    ppc.out <- rbind(ppc.out, getPpcLow(ext = ext,
+                                        gt.data = gt.data,
+                                        model = models[i],
+                                        hdi.level = hdi.level))
 
-    ppc.out <- c()
+
     for(s in 1:gt.data$Ns) {
-      cat(models[i], ":", s, "/", gt.data$Ns, ' ', sep = '')
-
-      ppc.out <- rbind(ppc.out, getPpcLowestLevel(ext = ext,
-                                                  gt.data = gt.data,
-                                                  model = models[i],
-                                                  hdi.level = hdi.level,
-                                                  s = s))
-
-      cat(". \n")
-
       if(!models[i] %in% c("M0", "M0c")) {
-        ppc.out <- rbind(ppc.out, getPpcMidLevel(ext = ext,
-                                                 gt.data = gt.data,
-                                                 model = models[i],
-                                                 hdi.level = hdi.level,
-                                                 s = s))
+        ppc.out <- rbind(ppc.out, getPpcMid(ext = ext,
+                                            gt.data = gt.data,
+                                            model = models[i],
+                                            hdi.level = hdi.level,
+                                            s = s))
       }
     }
-    # set model
-    ppc.out$model <- models[i]
-    ppc.list[[i]] <- ppc.out
   }
-
-  return (ppc.list)
+  return (ppc.out)
 }
+
 
