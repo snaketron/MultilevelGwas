@@ -1,139 +1,258 @@
 
 
 # Function:
-# Use the mid-level parameters (SNP effects) to make predictions
-getPpcMid <- function(ext, gt.data, s,
-                      hdi.level, model) {
+# Posterior prediction horizontal (at the same level, except lowest)
+getPpcHorizontal <- function(ext, gt.data,
+                             model, hdi.level) {
 
-  getPar <- function(t, s, k, gt.data, model) {
+
+  getPar <- function(t, s, k, gt.data,
+                     model, level,
+                     trait.type) {
     # alpha
     alpha.p <- paste("alpha", t, sep = '.')
     if(gt.data$Ntq+gt.data$Ntd == 1) {
       alpha.p <- "alpha"
     }
 
-    # beta
-    beta.p <- paste("mu_beta", t, s, sep = '.')
-    if(gt.data$Ntq+gt.data$Ntd == 1) {
-      beta.p <- paste("mu_beta", t, s, sep = '.')
+    # only across SNP level
+    if(model %in% c("M0", "M0c")) {
+      # beta
+      beta.p <- paste("beta", t, s, sep = '.')
+
+      # sigma
+      sigma.p <- paste("sigma", t, sep = '.')
+      if(gt.data$Ntq == 1) {
+        sigma.p <- "sigma"
+      }
+
+      if(trait.type == "Q") {
+        par <- c(alpha.p, beta.p, sigma.p)
+      }
+      else {
+        par <- c(alpha.p, beta.p)
+      }
     }
 
-    # sigma
-    sigma.p <- paste("sigma_beta", t, sep = '.')
-    if(gt.data$Ntq == 1) {
-      sigma.p <- "sigma_beta"
+    if(model %in% c("M1", "M1c")) {
+
+      # strain
+      if(level == "strain") {
+        # beta
+        beta.p <- paste("beta", t, s, k, sep = '.')
+
+        # sigma
+        sigma.p <- paste("sigma", t, sep = '.')
+        if(gt.data$Ntq == 1) {
+          sigma.p <- "sigma"
+        }
+
+        if(trait.type == "Q") {
+          par <- c(alpha.p, beta.p, sigma.p)
+        } else {
+          par <- c(alpha.p, beta.p)
+        }
+      }
+
+      # snp
+      if(level == "snp") {
+        # beta
+        beta.p <- paste("mu_beta", t, s, sep = '.')
+
+        # sigma
+        sigma.p <- paste("sigma_beta", t, sep = '.')
+        if(gt.data$Ntq == 1) {
+          sigma.p <- "sigma_beta"
+        }
+
+        par <- c(alpha.p, beta.p, sigma.p)
+      }
     }
 
-
-    par <- c(alpha.p, beta.p, sigma.p)
     return (par)
   }
 
 
-  getMuSnp <- function(x, y, trait.type) {
-    # m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
-    m <- x[1]+x[2]*y
-    if(trait.type == "D") {
-      m <- 1/(1 + exp(-m))
+  getMuSnp <- function(x, y,
+                       trait.type,
+                       level) {
+
+    if(level == "strain") {
+      if(trait.type == "Q") {
+        m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+      }
+      if(trait.type == "D") {
+        m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
+      }
     }
+
+    if(level == "snp") {
+      if(model %in% c("M0", "M0c")) {
+        if(trait.type == "Q") {
+          m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+        }
+        if(trait.type == "D") {
+          m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
+        }
+      }
+      if(model %in% c("M1", "M1c")) {
+        m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+        if(trait.type == "D") {
+          m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-m)))
+        }
+      }
+    }
+
+
     return(m)
   }
 
 
-  getPpc <- function(p, gt.data, s,
-                     hdi.level, model) {
+  # compute statistics
+  ysk <- array(data = NA, dim = c(gt.data$Ntd+gt.data$Ntq,
+                                 gt.data$Ns,
+                                 gt.data$Nk,
+                                 nrow(ext)))
 
-    stats <- c()
-    # Prediction at: X
-    for(t in 1:(gt.data$Ntq+gt.data$Ntd)) {
-      # index of D-trait
-      d <- sum(gt.data$trait.type[1:t] == "D")
+  ys <- array(data = NA, dim = c(gt.data$Ntd+gt.data$Ntq,
+                                  gt.data$Ns,
+                                  2,
+                                  nrow(ext)))
 
-      tt <- gt.data$trait.type[t]
-      for(x in c(1, -1)) {
-        ps <- getPar(t = t, s = s, k = gt.data$K[i],
-                     gt.data = gt.data, model = model)
 
-        yhat <- apply(X = p[, ps], MARGIN = 1, FUN = getMuSnp,
-                      y = x, trait.type = tt)
+  stats <- c()
+  for(t in 1:(gt.data$Ntq+gt.data$Ntd)) {
 
-        # real data
-        xs <- which(gt.data$X[, s] == x)
-        if(length(xs) != 0) {
-          if(tt == "Q") {
-            y.real <- mean(gt.data$Yq[xs, t])
-          }
-          if(tt == "D") {
-            y.real <- mean(as.numeric(gt.data$Yd[xs, d]))
-          }
+    for(s in 1:gt.data$Ns) {
 
-          # hdi's
-          yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-          error <- abs(yhat-y.real)
-          error.hdi <- getHdi(vec = error, hdi.level = hdi.level)
+      # get param from posterior
+      ps <- getPar(t = t, s = s, k = NA,
+                   gt.data = gt.data,
+                   model = model,
+                   level = "snp",
+                   trait.type = gt.data$trait.type[t])
 
+      # snp level
+      ys[t,s,1,] <- apply(X = ext[, ps], MARGIN = 1,
+                          FUN = getMuSnp, y = 1,
+                          trait.type = gt.data$trait.type[t],
+                          level = "snp")
+      ys[t,s,2,] <- apply(X = ext[, ps], MARGIN = 1,
+                          FUN = getMuSnp, y = -1,
+                          trait.type = gt.data$trait.type[t],
+                          level = "snp")
+
+
+      # special case for strains
+      if(model %in% c("M1", "M1c")) {
+        for(k in 1:gt.data$Nk) {
+
+          # get param from posterior
+          ps <- getPar(t = t, s = s, k = k,
+                       gt.data = gt.data,
+                       model = model,
+                       level = "strain",
+                       trait.type = gt.data$trait.type[t])
+
+          ysk[t,s,k,] <- apply(X = ext[, ps], MARGIN = 1,
+                               FUN = getMuSnp,
+                               y = unique(gt.data$X[gt.data$K == k, s]),
+                               trait.type = gt.data$trait.type[t],
+                               level = "strain")
+
+          y.real <- mean(gt.data$Y[gt.data$K == k, t])
+          yhat.hdi <- getHdi(vec = ysk[t,s,k,], hdi.level = hdi.level)
+          es <- abs(ysk[t,s,k,]-y.real)
+          es.hdi <- getHdi(vec = es, hdi.level = hdi.level)
           row <- data.frame(t = t,
                             s = s,
-                            x = x,
-                            k = NA,
+                            x = unique(gt.data$X[gt.data$K == k, s]),
+                            k = k,
                             i = NA,
                             parameter.level = "mid",
-                            prediction.level = "snp",
+                            prediction.level = "strain",
                             y.real.mean = y.real,
-                            y.ppc.mean = mean(x = yhat),
-                            y.ppc.median = median(x = yhat),
+                            y.ppc.mean = mean(ysk[t,s,k,]),
+                            y.ppc.median = median(ysk[t,s,k,]),
                             y.ppc.L = yhat.hdi[1],
                             y.ppc.H = yhat.hdi[2],
-                            y.error.mean = mean(error),
-                            y.error.median = median(error),
-                            y.error.L = error.hdi[1],
-                            y.error.H = error.hdi[2])
-
-          # cleanup
-          rm(y.real, yhat.hdi, xs, ps, yhat)
+                            y.error.mean = mean(es),
+                            y.error.median = median(es),
+                            y.error.L = es.hdi[1],
+                            y.error.H = es.hdi[2],
+                            model = model)
+          stats <- rbind(stats, row)
         }
-        else {
-          row <- data.frame(t = t,
-                            s = s,
-                            k = NA,
-                            i = NA,
-                            x = x,
-                            parameter.level = "mid",
-                            prediction.level = "snp",
-                            y.real.mean = NA,
-                            y.ppc.mean = NA,
-                            y.ppc.median = NA,
-                            y.ppc.L = NA,
-                            y.ppc.H = NA,
-                            y.error.mean = NA,
-                            y.error.median = NA,
-                            y.error.L = NA,
-                            y.error.H = NA)
-        }
-        stats <- rbind(stats, row)
+      }
 
-        # cleanup
-        rm(row)
+
+      # X = 1
+      y.real <- mean(gt.data$Y[gt.data$X[, s] == 1, t])
+      yhat.hdi <- getHdi(vec = ys[t,s,1,], hdi.level = hdi.level)
+      es <- abs(ys[t,s,1,]-y.real)
+      es.hdi <- getHdi(vec = es, hdi.level = hdi.level)
+      row <- data.frame(t = t,
+                        s = s,
+                        x = 1,
+                        k = NA,
+                        i = NA,
+                        parameter.level = "mid",
+                        prediction.level = "snp",
+                        y.real.mean = y.real,
+                        y.ppc.mean = mean(ys[t,s,1,]),
+                        y.ppc.median = median(ys[t,s,1,]),
+                        y.ppc.L = yhat.hdi[1],
+                        y.ppc.H = yhat.hdi[2],
+                        y.error.mean = mean(es),
+                        y.error.median = median(es),
+                        y.error.L = es.hdi[1],
+                        y.error.H = es.hdi[2],
+                        model = model)
+      stats <- rbind(stats, row)
+
+
+
+      # X = -1
+      y.real <- mean(gt.data$Y[gt.data$X[, s] == -1, t])
+      yhat.hdi <- getHdi(vec = ys[t,s,2,], hdi.level = hdi.level)
+      es <- abs(ys[t,s,2,]-y.real)
+      es.hdi <- getHdi(vec = es, hdi.level = hdi.level)
+      row <- data.frame(t = t,
+                        s = s,
+                        x = -1,
+                        k = NA,
+                        i = NA,
+                        parameter.level = "mid",
+                        prediction.level = "snp",
+                        y.real.mean = y.real,
+                        y.ppc.mean = mean(ys[t,s,2,]),
+                        y.ppc.median = median(ys[t,s,2,]),
+                        y.ppc.L = yhat.hdi[1],
+                        y.ppc.H = yhat.hdi[2],
+                        y.error.mean = mean(es),
+                        y.error.median = median(es),
+                        y.error.L = es.hdi[1],
+                        y.error.H = es.hdi[2],
+                        model = model)
+      stats <- rbind(stats, row)
+
+
+      if(s %% 50 == 0) {
+        cat("trait:", t, "/", gt.data$Ntq+gt.data$Ntd,
+            ", SNP:", s, "/", gt.data$Ns, '\n', sep = '')
       }
     }
-
-    stats$model <- model
-
-    return (stats)
   }
 
-
-  return(getPpc(p = ext, gt.data = gt.data,
-                s = s, hdi.level = hdi.level,
-                model = model))
+  return (stats)
 }
 
 
 
 # Function:
-# Posterior prediction
-getPpcLow <- function(ext, gt.data,
-                      model, hdi.level) {
+# Posterior prediction from bottom to top
+getPpcHierarchical <- function(ext, gt.data,
+                               model, hdi.level) {
 
   # Function:
   # Use the most specific parameters to make predictions at different levels
@@ -283,7 +402,6 @@ getPpcLow <- function(ext, gt.data,
 
 
   ppc.out <- vector(mode = "list", length = gt.data$Ns)
-  cat("Model:", model, "\n", sep = '')
   for(s in 1:gt.data$Ns) {
     ppc.out[[s]] <- getPpcPosterior(ext = ext,
                                     gt.data = gt.data,
@@ -291,13 +409,14 @@ getPpcLow <- function(ext, gt.data,
                                     s = s)
 
     if(s %% 50 == 0) {
-      cat(s, "/", gt.data$Ns, ',',  sep = '')
+      cat("SNP:", s, "/", gt.data$Ns, ',', sep = '')
     }
   }
-  cat("\n")
 
 
 
+
+  # compute statistics
   ys <- array(data = NA, dim = c(gt.data$Ntd+gt.data$Ntq,
                                  gt.data$Ns,
                                  gt.data$N,
@@ -339,7 +458,8 @@ getPpcLow <- function(ext, gt.data,
                         y.error.mean = mean(es[t,i,]),
                         y.error.median = median(es[t,i,]),
                         y.error.L = es.hdi[1],
-                        y.error.H = es.hdi[2])
+                        y.error.H = es.hdi[2],
+                        model = model)
       stats <- rbind(stats, row)
     }
 
@@ -368,7 +488,8 @@ getPpcLow <- function(ext, gt.data,
                         y.error.mean = mean(e),
                         y.error.median = median(e),
                         y.error.L = es.hdi[1],
-                        y.error.H = es.hdi[2])
+                        y.error.H = es.hdi[2],
+                        model = model)
       stats <- rbind(stats, row)
     }
 
@@ -401,16 +522,15 @@ getPpcLow <- function(ext, gt.data,
                             y.error.mean = mean(e),
                             y.error.median = median(e),
                             y.error.L = es.hdi[1],
-                            y.error.H = es.hdi[2])
+                            y.error.H = es.hdi[2],
+                            model = model)
           stats <- rbind(stats, row)
         }
       }
     }
   }
-
-  stats$model <- model
   return (stats)
-  # return (list(ys = ys, es = es, stats = stats))
 }
+
 
 

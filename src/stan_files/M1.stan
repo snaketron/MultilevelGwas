@@ -29,8 +29,6 @@ transformed parameters {
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
       mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t,s];
-      // single nu
-      // mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help/nu)*grand_z[t,s];
     }
   }
 

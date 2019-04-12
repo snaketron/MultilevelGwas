@@ -208,6 +208,8 @@ getPpc <- function(ps,
 
   ppc.out <- c()
   for(i in 1:length(models)) {
+    cat("Model:", models[i], "\n", sep = '')
+
     # get posterior
     ext <- data.frame(rstan::extract(object = ps[[i]],
                                      pars = c("z", "log_lik", "log_lik2"),
@@ -216,21 +218,17 @@ getPpc <- function(ps,
                       size = min(c(500, nrow(ext))),
                       replace = TRUE), ]
 
-    ppc.out <- rbind(ppc.out, getPpcLow(ext = ext,
-                                        gt.data = gt.data,
-                                        model = models[i],
-                                        hdi.level = hdi.level))
+    ppc.out <- rbind(ppc.out, getPpcHierarchical(ext = ext,
+                                                 gt.data = gt.data,
+                                                 model = models[i],
+                                                 hdi.level = hdi.level))
 
+    ppc.out <- rbind(ppc.out, getPpcHorizontal(ext = ext,
+                                               gt.data = gt.data,
+                                               model = models[i],
+                                               hdi.level = hdi.level))
 
-    for(s in 1:gt.data$Ns) {
-      if(!models[i] %in% c("M0", "M0c")) {
-        ppc.out <- rbind(ppc.out, getPpcMid(ext = ext,
-                                            gt.data = gt.data,
-                                            model = models[i],
-                                            hdi.level = hdi.level,
-                                            s = s))
-      }
-    }
+    cat("\n")
   }
   return (ppc.out)
 }
