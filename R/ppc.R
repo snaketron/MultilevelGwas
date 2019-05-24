@@ -55,7 +55,7 @@ getPpcHorizontal <- function(ext, gt.data,
       }
 
       # snp
-      if(level == "snp") {
+      if(level == "refSNP") {
         # beta
         beta.p <- paste("mu_beta", t, s, sep = '.')
 
@@ -73,36 +73,72 @@ getPpcHorizontal <- function(ext, gt.data,
   }
 
 
-  getMuSnp <- function(x, y,
-                       trait.type,
-                       level) {
+  getMuSnp <- function(x, y, trait.type, level) {
 
     if(level == "strain") {
       if(trait.type == "Q") {
         m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
       }
       if(trait.type == "D") {
-        m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
+        m <- 1/(1 + exp(-(x[1]+x[2]*y)))
+        # m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
       }
     }
 
-    if(level == "snp") {
+    if(level == "refSNP") {
       if(model %in% c("M0", "M0c")) {
         if(trait.type == "Q") {
           m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
         }
         if(trait.type == "D") {
-          m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
+          m <- 1/(1 + exp(-(x[1]+x[2]*y)))
+          # m <- mean(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
         }
       }
       if(model %in% c("M1", "M1c")) {
         m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
         if(trait.type == "D") {
-          m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-m)))
+          m <- 1/(1 + exp(-m))
+          # m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-m)))
         }
       }
     }
 
+    return(m)
+  }
+
+
+
+  getMuSnpOther <- function(x, y, trait.type, level) {
+
+    if(level == "strain") {
+      if(trait.type == "Q") {
+        m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+      }
+      if(trait.type == "D") {
+        m <- 1/(1 + exp(-(x[1]+x[2]*y)))
+        # m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
+      }
+    }
+
+    if(level == "refSNP") {
+      if(model %in% c("M0", "M0c")) {
+        if(trait.type == "Q") {
+          m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+        }
+        if(trait.type == "D") {
+          m <- 1/(1 + exp(-(x[1]+x[2]*y)))
+          # m <- mean(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
+        }
+      }
+      if(model %in% c("M1", "M1c")) {
+        m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
+        if(trait.type == "D") {
+          m <- 1/(1 + exp(-m))
+          # m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-m)))
+        }
+      }
+    }
 
     return(m)
   }
@@ -129,18 +165,18 @@ getPpcHorizontal <- function(ext, gt.data,
       ps <- getPar(t = t, s = s, k = NA,
                    gt.data = gt.data,
                    model = model,
-                   level = "snp",
+                   level = "refSNP",
                    trait.type = gt.data$trait.type[t])
 
       # snp level
       ys[t,s,1,] <- apply(X = ext[, ps], MARGIN = 1,
                           FUN = getMuSnp, y = 1,
                           trait.type = gt.data$trait.type[t],
-                          level = "snp")
+                          level = "refSNP")
       ys[t,s,2,] <- apply(X = ext[, ps], MARGIN = 1,
                           FUN = getMuSnp, y = -1,
                           trait.type = gt.data$trait.type[t],
-                          level = "snp")
+                          level = "refSNP")
 
 
       # special case for strains
@@ -159,29 +195,6 @@ getPpcHorizontal <- function(ext, gt.data,
                                y = unique(gt.data$X[gt.data$K == k, s]),
                                trait.type = gt.data$trait.type[t],
                                level = "strain")
-
-          y.real <- mean(gt.data$Y[gt.data$K == k, t])
-          yhat.hdi <- getHdi(vec = ysk[t,s,k,], hdi.level = hdi.level)
-          es <- abs(ysk[t,s,k,]-y.real)
-          es.hdi <- getHdi(vec = es, hdi.level = hdi.level)
-          row <- data.frame(t = t,
-                            s = s,
-                            x = unique(gt.data$X[gt.data$K == k, s]),
-                            k = k,
-                            i = NA,
-                            parameter.level = "mid",
-                            prediction.level = "strain",
-                            y.real.mean = y.real,
-                            y.ppc.mean = mean(ysk[t,s,k,]),
-                            y.ppc.median = median(ysk[t,s,k,]),
-                            y.ppc.L = yhat.hdi[1],
-                            y.ppc.H = yhat.hdi[2],
-                            y.error.mean = mean(es),
-                            y.error.median = median(es),
-                            y.error.L = es.hdi[1],
-                            y.error.H = es.hdi[2],
-                            model = model)
-          stats <- rbind(stats, row)
         }
       }
 
@@ -196,8 +209,8 @@ getPpcHorizontal <- function(ext, gt.data,
                         x = 1,
                         k = NA,
                         i = NA,
-                        parameter.level = "mid",
-                        prediction.level = "snp",
+                        ppc.type = "h",
+                        prediction.level = "refSNP",
                         y.real.mean = y.real,
                         y.ppc.mean = mean(ys[t,s,1,]),
                         y.ppc.median = median(ys[t,s,1,]),
@@ -222,8 +235,8 @@ getPpcHorizontal <- function(ext, gt.data,
                         x = -1,
                         k = NA,
                         i = NA,
-                        parameter.level = "mid",
-                        prediction.level = "snp",
+                        ppc.type = "h",
+                        prediction.level = "refSNP",
                         y.real.mean = y.real,
                         y.ppc.mean = mean(ys[t,s,2,]),
                         y.ppc.median = median(ys[t,s,2,]),
@@ -242,6 +255,37 @@ getPpcHorizontal <- function(ext, gt.data,
             ", SNP:", s, "/", gt.data$Ns, '\n', sep = '')
       }
     }
+
+
+    # special case for strains
+    if(model %in% c("M1", "M1c")) {
+      for(k in 1:gt.data$Nk) {
+
+        y.temp <- ysk[t,,k,]
+        y.real <- mean(gt.data$Y[gt.data$K == k, t])
+        yhat.hdi <- getHdi(vec = y.temp, hdi.level = hdi.level)
+        es <- abs(y.temp-y.real)
+        es.hdi <- getHdi(vec = es, hdi.level = hdi.level)
+        row <- data.frame(t = t,
+                          s = s,
+                          x = unique(gt.data$X[gt.data$K == k, s]),
+                          k = k,
+                          i = NA,
+                          ppc.type = "h",
+                          prediction.level = "strain",
+                          y.real.mean = y.real,
+                          y.ppc.mean = mean(y.temp),
+                          y.ppc.median = median(y.temp),
+                          y.ppc.L = yhat.hdi[1],
+                          y.ppc.H = yhat.hdi[2],
+                          y.error.mean = mean(es),
+                          y.error.median = median(es),
+                          y.error.L = es.hdi[1],
+                          y.error.H = es.hdi[2],
+                          model = model)
+        stats <- rbind(stats, row)
+      }
+    }
   }
 
   return (stats)
@@ -251,8 +295,8 @@ getPpcHorizontal <- function(ext, gt.data,
 
 # Function:
 # Posterior prediction from bottom to top
-getPpcHierarchical <- function(ext, gt.data,
-                               model, hdi.level) {
+getPpcVertical <- function(ext, gt.data,
+                           model, hdi.level) {
 
   # Function:
   # Use the most specific parameters to make predictions at different levels
@@ -357,7 +401,8 @@ getPpcHierarchical <- function(ext, gt.data,
 
     getMuSnpIndividual <- function(x, y, trait.type) {
       if(trait.type == "D") {
-        return(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
+        # return(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
+        return(1/(1 + exp(-(x[1]+x[2]*y))))
       }
       if(trait.type == "Q") {
         return(rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3]))
@@ -422,13 +467,11 @@ getPpcHierarchical <- function(ext, gt.data,
                                  gt.data$N,
                                  nrow(ext)))
 
-  yi <- array(data = NA, dim = c(gt.data$Ntd+gt.data$Ntq,
-                                 gt.data$N,
-                                 nrow(ext)))
 
-  es <- array(data = NA, dim = c(gt.data$Ntd+gt.data$Ntq,
+  ei <- array(data = NA, dim = c(gt.data$Ntd+gt.data$Ntq,
                                  gt.data$N,
-                                 nrow(ext)))
+                                 nrow(ext)*gt.data$Ns))
+
 
   stats <- c()
   for(t in 1:(gt.data$Ntd+gt.data$Ntq)) {
@@ -438,57 +481,67 @@ getPpcHierarchical <- function(ext, gt.data,
       }
 
       # stats at individual level
-      yi[t,i,] <- apply(X = t(ys[t,,i,]), MARGIN = 1, FUN = mean)
-      yhat.hdi <- getHdi(vec = yi[t,i,], hdi.level = hdi.level)
-      es[t,i,] <- abs(yi[t,i,]-gt.data$Y[i,t])
-      es.hdi <- getHdi(vec = es[t,i,], hdi.level = hdi.level)
+      y.ppc.hdi <- getHdi(vec = t(ys[t,,i,]), hdi.level = hdi.level)
+      y.ppc.mean <- mean(t(ys[t,,i,]))
+      y.ppc.median <- median(t(ys[t,,i,]))
+
+      ei[t,i,] <- abs(as.vector(t(ys[t,,i,]))-gt.data$Y[i,t])
+      y.error.mean <- mean(ei[t,i,])
+      y.error.median <- median(ei[t,i,])
+      y.error.hdi <- getHdi(vec = ei[t,i,], hdi.level = hdi.level)
 
       row <- data.frame(t = t,
                         s = NA,
                         x = NA,
                         k = NA,
                         i = i,
-                        parameter.level = "low",
+                        ppc.type = "v",
                         prediction.level = "individual",
                         y.real.mean = gt.data$Y[i, t],
-                        y.ppc.mean = mean(yi[t,i,]),
-                        y.ppc.median = median(yi[t,i,]),
-                        y.ppc.L = yhat.hdi[1],
-                        y.ppc.H = yhat.hdi[2],
-                        y.error.mean = mean(es[t,i,]),
-                        y.error.median = median(es[t,i,]),
-                        y.error.L = es.hdi[1],
-                        y.error.H = es.hdi[2],
+                        y.ppc.mean = y.ppc.mean,
+                        y.ppc.median = y.ppc.median,
+                        y.ppc.L = y.ppc.hdi[1],
+                        y.ppc.H = y.ppc.hdi[2],
+                        y.error.mean = y.error.mean,
+                        y.error.median = y.error.median,
+                        y.error.L = y.error.hdi[1],
+                        y.error.H = y.error.hdi[2],
                         model = model)
       stats <- rbind(stats, row)
     }
+
 
     # strains level
     for(k in 1:gt.data$Nk) {
       ks <- which(gt.data$K == k)
 
       # stats at strain level
-      yhat <- apply(X = t(yi[t,ks,]), MARGIN = 1, FUN = mean)
-      yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-      e <- apply(X = t(es[t,ks,]), MARGIN = 1, FUN = mean)
-      es.hdi <- getHdi(vec = e, hdi.level = hdi.level)
+      y.ppc.hdi <- getHdi(vec = ys[t,,ks,], hdi.level = hdi.level)
+      y.ppc.mean <- mean(ys[t,,ks,])
+      y.ppc.median <- median(ys[t,,ks,])
+
+      e <- apply(X = t(ei[t,ks,]), MARGIN = 1, FUN = mean)
+      y.error.mean <- mean(e)
+      y.error.median <- median(e)
+      y.error.hdi <- getHdi(vec = e, hdi.level = hdi.level)
+
 
       row <- data.frame(t = t,
                         s = NA,
                         x = NA,
                         k = k,
                         i = i,
-                        parameter.level = "low",
+                        ppc.type = "v",
                         prediction.level = "strain",
                         y.real.mean = mean(gt.data$Y[ks, t]),
-                        y.ppc.mean = mean(yhat),
-                        y.ppc.median = median(yhat),
-                        y.ppc.L = yhat.hdi[1],
-                        y.ppc.H = yhat.hdi[2],
-                        y.error.mean = mean(e),
-                        y.error.median = median(e),
-                        y.error.L = es.hdi[1],
-                        y.error.H = es.hdi[2],
+                        y.ppc.mean = y.ppc.mean,
+                        y.ppc.median = y.ppc.median,
+                        y.ppc.L = y.ppc.hdi[1],
+                        y.ppc.H = y.ppc.hdi[2],
+                        y.error.mean = y.error.mean,
+                        y.error.median = y.error.median,
+                        y.error.L = y.error.hdi[1],
+                        y.error.H = y.error.hdi[2],
                         model = model)
       stats <- rbind(stats, row)
     }
@@ -501,31 +554,42 @@ getPpcHierarchical <- function(ext, gt.data,
         xs <- which(gt.data$X[, s] == x)
         if(length(xs) != 0) {
 
-          # stats at strain level
-          yhat <- apply(X = t(yi[t,xs,]), MARGIN = 1, FUN = mean)
-          yhat.hdi <- getHdi(vec = yhat, hdi.level = hdi.level)
-          e <- apply(X = t(es[t,xs,]), MARGIN = 1, FUN = mean)
-          es.hdi <- getHdi(vec = e, hdi.level = hdi.level)
+
+          # stats at SNP level
+          y.temp <- ys[t,s,xs,]
+          y.ppc.hdi <- getHdi(vec = y.temp, hdi.level = hdi.level)
+          y.ppc.mean <- mean(y.temp)
+          y.ppc.median <- median(y.temp)
+
+          e <- apply(X = t(ei[t,xs,]), MARGIN = 1, FUN = mean)
+          y.error.mean <- mean(e)
+          y.error.median <- median(e)
+          y.error.hdi <- getHdi(vec = e, hdi.level = hdi.level)
+
 
           row <- data.frame(t = t,
                             s = s,
                             x = x,
                             k = NA,
                             i = NA,
-                            parameter.level = "low",
-                            prediction.level = "snp",
+                            ppc.type = "v",
+                            prediction.level = "refSNP",
                             y.real.mean = mean(gt.data$Y[xs, t]),
-                            y.ppc.mean = mean(yhat),
-                            y.ppc.median = median(yhat),
-                            y.ppc.L = yhat.hdi[1],
-                            y.ppc.H = yhat.hdi[2],
-                            y.error.mean = mean(e),
-                            y.error.median = median(e),
-                            y.error.L = es.hdi[1],
-                            y.error.H = es.hdi[2],
+                            y.ppc.mean = y.ppc.mean,
+                            y.ppc.median = y.ppc.median,
+                            y.ppc.L = y.ppc.hdi[1],
+                            y.ppc.H = y.ppc.hdi[2],
+                            y.error.mean = y.error.mean,
+                            y.error.median = y.error.median,
+                            y.error.L = y.error.hdi[1],
+                            y.error.H = y.error.hdi[2],
                             model = model)
           stats <- rbind(stats, row)
         }
+      }
+
+      if(s %% 50 == 0) {
+        cat("SNP:", s, "/", gt.data$Ns, ',', sep = '')
       }
     }
   }

@@ -1,0 +1,719 @@
+---
+title: "Degree of Hierarchical Shrinkage"
+author: "SK"
+date: "5/23/2019"
+output: html_document
+---
+
+
+
+
+
+```{r setup, include = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = FALSE, 
+                      warning = FALSE, message = FALSE)
+```
+
+
+
+```{r, results = "hide", include = FALSE}
+require(rstan)
+require(loo)
+require(ggplot2)
+
+source("R/main.R")
+source("R/util.R")
+source("R/bayesian.R")
+source("R/statlearn.R")
+source("R/modelcomparison.R")
+source("R/ppc.R")
+
+# models
+m <- rstan::stan_model(file = "src/stan_files/M0.stan")
+m.nohierarchy <- rstan::stan_model(file = "dev.tests/simulation_hierarchy/nohierarchy.stan")
+m.withhierarchy_centered_t <- rstan::stan_model(file = "dev.tests/simulation_hierarchy/withhierarchy_centered_t.stan")
+m.withhierarchy_centered_n <- rstan::stan_model(file = "dev.tests/simulation_hierarchy/withhierarchy_centered_n.stan")
+```
+
+
+
+
+
+
+
+
+# Sim 1
+## Simulate data:
+  * N = 60 -> number of individuals
+  * S = 300 -> number of SNPs
+  * p.signal = 0.9 -> proportion of background SNPs
+  * No strains
+
+```{r}
+# 1. simulate data
+N <- 60
+S <- 300
+p.signal = 0.9
+
+
+set.seed(seed = 42133214)
+
+# simulate slopes
+beta <- replicate(n = N, ifelse(test = runif(n = 1, min = 0, max = 1) > 0.5,
+                                yes = rnorm(n = 1, mean = 1, sd = 1),
+                                no = rnorm(n = 1, mean = 4, sd = 1)))
+alpha <- 0
+Y <- alpha + beta
+
+# simulate genotypes
+X <- matrix(data = NA, nrow = N, ncol = S)
+signal.snps <- c()
+for(i in 1:S) {
+  if(runif(n = 1, min = 0, max = 1) >= p.signal) {
+    signal.snps <- c(signal.snps, i)
+    X.vec <- sapply(X = (Y-min(Y))/(max(Y)-min(Y)), FUN = rbinom, n = 1, size = 1)
+    if(runif(n = 1, min = 0, max = 1) > 0.5) {
+      X.vec[X.vec == 0] <- -1
+      X[, i] <- X.vec
+    }
+    else {
+      X.vec[X.vec == 1] <- -1
+      X.vec[X.vec == 0] <- 1
+      X[, i] <- X.vec
+    }
+  }
+  else {
+    X[, i] <- sample(x = c(-1, 1), size = N, replace = T, prob = c(0.5, 0.5))
+  }
+}
+rm(i)
+
+# pack data for MLgwas
+Yq <- matrix(data = Y, ncol = 1)
+Yd <- matrix(data = 0, ncol = 0, nrow = N)
+data.list <- list(N = N,
+           Ntq = 1,
+           Ntd = 0,
+           Ns = S,
+           Yq = Yq,
+           Yd = Yd,
+           X = X,
+           p.signal = p.signal,
+           signal.snps = signal.snps)
+
+gt.data <- getStanData(genotype = X,
+                       traits = Yq,
+                       trait.type = "Q",
+                       rep(x = 1, times = N))
+
+
+d1 <- list(data.list = data.list, 
+           gt.data = gt.data)
+
+rm(X, N, S, Y, Yq, Yd, data.list, gt.data, 
+   signal.snps, p.signal, beta, alpha, i, X.vec)
+```
+
+
+
+
+
+## Analyze data
+
+```{r}
+p.null <- rstan::sampling(object = m.nohierarchy,
+                          data = d1$data.list,
+                          iter = 1000,
+                          warmup = 500,
+                          chains = 4,
+                          cores = 4,
+                          control = list(adapt_delta = 0.9))
+
+ps1.null <- vector(mode = "list", length = 1)
+names(ps1.null) <- "M0"
+ps1.null[[1]] <- p.null
+ppc1.null <- getPpc(ps = ps1.null,
+                    gt.data = d1$gt.data,
+                    models = "M0",
+                    hdi.level = 0.95,
+                    debug = F)
+
+
+
+p.centered.t <- rstan::sampling(object = m.withhierarchy_centered_t,
+                                data = d1$data.list,
+                                iter = 1000,
+                                warmup = 500,
+                                chains = 4,
+                                cores = 4,
+                                control = list(adapt_delta = 0.9))
+
+ps1.centered.t <- vector(mode = "list", length = 1)
+names(ps1.centered.t) <- "M0"
+ps1.centered.t[[1]] <- p.centered.t
+ppc1.centered.t <- getPpc(ps = ps1.centered.t,
+                          gt.data = d1$gt.data,
+                          models = "M0",
+                          hdi.level = 0.95,
+                          debug = F)
+
+
+
+p.centered.n <- rstan::sampling(object = m.withhierarchy_centered_n,
+                                data = d1$data.list,
+                                iter = 1000,
+                                warmup = 500,
+                                chains = 4,
+                                cores = 4,
+                                control = list(adapt_delta = 0.9))
+
+ps1.centered.n <- vector(mode = "list", length = 1)
+names(ps1.centered.n) <- "M0"
+ps1.centered.n[[1]] <- p.centered.n
+ppc1.centered.n <- getPpc(ps = ps1.centered.n,
+                          gt.data = d1$gt.data,
+                          models = "M0",
+                          hdi.level = 0.95,
+                          debug = F)
+
+
+
+p <- rstan::sampling(object = m,
+                     data = d1$data.list,
+                     iter = 1000,
+                     warmup = 500,
+                     chains = 4,
+                     cores = 4,
+                     control = list(adapt_delta = 0.9))
+
+ps1 <- vector(mode = "list", length = 1)
+names(ps1) <- "M0"
+ps1[[1]] <- p
+ppc1 <- getPpc(ps = ps1,
+               gt.data = d1$gt.data,
+               models = "M0",
+               hdi.level = 0.95,
+               debug = F)
+```
+
+
+
+# Sim 2
+## Simulate data:
+  * N = 60 -> number of individuals
+  * S = 300 -> number of SNPs
+  * p.signal = 0.95 -> proportion of background SNPs
+  * No strains
+
+```{r}
+# 1. simulate data
+N <- 60
+S <- 300
+p.signal = 0.95
+
+
+set.seed(seed = 42133214)
+
+# simulate slopes
+beta <- replicate(n = N, ifelse(test = runif(n = 1, min = 0, max = 1) > 0.5,
+                                yes = rnorm(n = 1, mean = 1, sd = 1),
+                                no = rnorm(n = 1, mean = 4, sd = 1)))
+alpha <- 0
+Y <- alpha + beta
+
+# simulate genotypes
+X <- matrix(data = NA, nrow = N, ncol = S)
+signal.snps <- c()
+for(i in 1:S) {
+  if(runif(n = 1, min = 0, max = 1) >= p.signal) {
+    signal.snps <- c(signal.snps, i)
+    X.vec <- sapply(X = (Y-min(Y))/(max(Y)-min(Y)), FUN = rbinom, n = 1, size = 1)
+    if(runif(n = 1, min = 0, max = 1) > 0.5) {
+      X.vec[X.vec == 0] <- -1
+      X[, i] <- X.vec
+    }
+    else {
+      X.vec[X.vec == 1] <- -1
+      X.vec[X.vec == 0] <- 1
+      X[, i] <- X.vec
+    }
+  }
+  else {
+    X[, i] <- sample(x = c(-1, 1), size = N, replace = T, prob = c(0.5, 0.5))
+  }
+}
+rm(i)
+
+# pack data for MLgwas
+Yq <- matrix(data = Y, ncol = 1)
+Yd <- matrix(data = 0, ncol = 0, nrow = N)
+data.list <- list(N = N,
+           Ntq = 1,
+           Ntd = 0,
+           Ns = S,
+           Yq = Yq,
+           Yd = Yd,
+           X = X,
+           p.signal = p.signal,
+           signal.snps = signal.snps)
+
+gt.data <- getStanData(genotype = X,
+                       traits = Yq,
+                       trait.type = "Q",
+                       rep(x = 1, times = N))
+
+
+d2 <- list(data.list = data.list, 
+           gt.data = gt.data)
+
+rm(X, N, S, Y, Yq, Yd, data.list, gt.data, signal.snps,
+   p.signal, beta, alpha, i, X.vec)
+```
+
+
+
+## Analyze data
+
+```{r}
+p.null <- rstan::sampling(object = m.nohierarchy,
+                          data = d2$data.list,
+                          iter = 1000,
+                          warmup = 500,
+                          chains = 4,
+                          cores = 4,
+                          control = list(adapt_delta = 0.9))
+
+ps2.null <- vector(mode = "list", length = 1)
+names(ps2.null) <- "M0"
+ps2.null[[1]] <- p.null
+ppc2.null <- getPpc(ps = ps2.null,
+                    gt.data = d2$gt.data,
+                    models = "M0",
+                    hdi.level = 0.95,
+                    debug = F)
+
+
+
+p.centered.t <- rstan::sampling(object = m.withhierarchy_centered_t,
+                                data = d2$data.list,
+                                iter = 1000,
+                                warmup = 500,
+                                chains = 4,
+                                cores = 4,
+                                control = list(adapt_delta = 0.9))
+
+ps2.centered.t <- vector(mode = "list", length = 1)
+names(ps2.centered.t) <- "M0"
+ps2.centered.t[[1]] <- p.centered.t
+ppc2.centered.t <- getPpc(ps = ps2.centered.t,
+                          gt.data = d2$gt.data,
+                          models = "M0",
+                          hdi.level = 0.95,
+                          debug = F)
+
+
+
+p.centered.n <- rstan::sampling(object = m.withhierarchy_centered_n,
+                                data = d2$data.list,
+                                iter = 1000,
+                                warmup = 500,
+                                chains = 4,
+                                cores = 4,
+                                control = list(adapt_delta = 0.9))
+
+ps2.centered.n <- vector(mode = "list", length = 1)
+names(ps2.centered.n) <- "M0"
+ps2.centered.n[[1]] <- p.centered.n
+ppc2.centered.n <- getPpc(ps = ps2.centered.n,
+                          gt.data = d2$gt.data,
+                          models = "M0",
+                          hdi.level = 0.95,
+                          debug = F)
+
+
+p <- rstan::sampling(object = m,
+                     data = d2$data.list,
+                     iter = 1000,
+                     warmup = 500,
+                     chains = 4,
+                     cores = 4,
+                     control = list(adapt_delta = 0.9))
+
+ps2 <- vector(mode = "list", length = 1)
+names(ps2) <- "M0"
+ps2[[1]] <- p
+ppc2 <- getPpc(ps = ps2,
+               gt.data = d2$gt.data,
+               models = "M0",
+               hdi.level = 0.95,
+               debug = F)
+```
+
+
+
+
+
+# Sim 3
+## Simulate data:
+  * N = 60 -> number of individuals
+  * S = 300 -> number of SNPs
+  * p.signal = 0.99 -> proportion of background SNPs
+  * No strains
+
+```{r}
+# 1. simulate data
+N <- 60
+S <- 300
+p.signal = 0.99
+
+
+set.seed(seed = 42133214)
+
+# simulate slopes
+beta <- replicate(n = N, ifelse(test = runif(n = 1, min = 0, max = 1) > 0.5,
+                                yes = rnorm(n = 1, mean = 1, sd = 1),
+                                no = rnorm(n = 1, mean = 4, sd = 1)))
+alpha <- 0
+Y <- alpha + beta
+
+# simulate genotypes
+X <- matrix(data = NA, nrow = N, ncol = S)
+signal.snps <- c()
+for(i in 1:S) {
+  if(runif(n = 1, min = 0, max = 1) >= p.signal) {
+    signal.snps <- c(signal.snps, i)
+    X.vec <- sapply(X = (Y-min(Y))/(max(Y)-min(Y)), FUN = rbinom, n = 1, size = 1)
+    if(runif(n = 1, min = 0, max = 1) > 0.5) {
+      X.vec[X.vec == 0] <- -1
+      X[, i] <- X.vec
+    }
+    else {
+      X.vec[X.vec == 1] <- -1
+      X.vec[X.vec == 0] <- 1
+      X[, i] <- X.vec
+    }
+  }
+  else {
+    X[, i] <- sample(x = c(-1, 1), size = N, replace = T, prob = c(0.5, 0.5))
+  }
+}
+rm(i)
+
+# pack data for MLgwas
+Yq <- matrix(data = Y, ncol = 1)
+Yd <- matrix(data = 0, ncol = 0, nrow = N)
+data.list <- list(N = N,
+           Ntq = 1,
+           Ntd = 0,
+           Ns = S,
+           Yq = Yq,
+           Yd = Yd,
+           X = X,
+           p.signal = p.signal,
+           signal.snps = signal.snps)
+
+gt.data <- getStanData(genotype = X,
+                       traits = Yq,
+                       trait.type = "Q",
+                       rep(x = 1, times = N))
+
+
+d3 <- list(data.list = data.list, 
+           gt.data = gt.data)
+
+rm(X, N, S, Y, Yq, Yd, data.list, gt.data, signal.snps,
+   p.signal, beta, alpha, i, X.vec)
+```
+
+
+## Analyze data
+
+```{r}
+p.null <- rstan::sampling(object = m.nohierarchy,
+                          data = d3$data.list,
+                          iter = 1000,
+                          warmup = 500,
+                          chains = 4,
+                          cores = 4,
+                          control = list(adapt_delta = 0.9))
+
+ps3.null <- vector(mode = "list", length = 1)
+names(ps3.null) <- "M0"
+ps3.null[[1]] <- p.null
+ppc3.null <- getPpc(ps = ps3.null,
+                    gt.data = d3$gt.data,
+                    models = "M0",
+                    hdi.level = 0.95,
+                    debug = F)
+
+
+
+p.centered.t <- rstan::sampling(object = m.withhierarchy_centered_t,
+                                data = d3$data.list,
+                                iter = 1000,
+                                warmup = 500,
+                                chains = 4,
+                                cores = 4,
+                                control = list(adapt_delta = 0.9))
+
+ps3.centered.t <- vector(mode = "list", length = 1)
+names(ps3.centered.t) <- "M0"
+ps3.centered.t[[1]] <- p.centered.t
+ppc3.centered.t <- getPpc(ps = ps3.centered.t,
+                          gt.data = d3$gt.data,
+                          models = "M0",
+                          hdi.level = 0.95,
+                          debug = F)
+
+
+
+
+p.centered.n <- rstan::sampling(object = m.withhierarchy_centered_n,
+                                data = d3$data.list,
+                                iter = 1000,
+                                warmup = 500,
+                                chains = 4,
+                                cores = 4,
+                                control = list(adapt_delta = 0.9))
+
+ps3.centered.n <- vector(mode = "list", length = 1)
+names(ps3.centered.n) <- "M0"
+ps3.centered.n[[1]] <- p.centered.n
+ppc3.centered.n <- getPpc(ps = ps3.centered.n,
+                          gt.data = d3$gt.data,
+                          models = "M0",
+                          hdi.level = 0.95,
+                          debug = F)
+
+
+
+p <- rstan::sampling(object = m,
+                     data = d3$data.list,
+                     iter = 1000,
+                     warmup = 500,
+                     chains = 4,
+                     cores = 4,
+                     control = list(adapt_delta = 0.9))
+
+ps3 <- vector(mode = "list", length = 1)
+names(ps3) <- "M0"
+ps3[[1]] <- p
+ppc3 <- getPpc(ps = ps3,
+               gt.data = d3$gt.data,
+               models = "M0",
+               hdi.level = 0.95,
+               debug = F)
+```
+
+
+
+```{r}
+plot(density(d1$data.list$Yq))
+```
+
+
+
+```{r}
+r <- list(d1 = d1,
+          d2 = d2,
+          d3 = d3,
+          ps1 = ps1, 
+          ps1.null = ps1.null, 
+          ps1.centered.t = ps1.centered.t, 
+          ps1.centered.n = ps1.centered.n,
+          ps2 = ps2, 
+          ps2.null = ps2.null, 
+          ps2.centered.t = ps2.centered.t, 
+          ps2.centered.n = ps2.centered.n,
+          ps3 = ps3, 
+          ps3.null = ps3.null, 
+          ps3.centered.t = ps3.centered.t, 
+          ps3.centered.n = ps3.centered.n)
+# save progress
+save(r, file = "dev.tests/simulation_hierarchy/r.RData")
+```
+
+
+
+
+```{r, fig.width=6, fig.height=8}
+s1 <- summary(r$ps1$M0, par = c("alpha", "beta"))$summary
+s1.null <- summary(r$ps1.null$M0, par = c("alpha", "beta"))$summary
+s1.centered.t <- summary(r$ps1.centered.t$M0, par = c("alpha", "beta"))$summary
+s1.centered.n <- summary(r$ps1.centered.n$M0, par = c("alpha", "beta"))$summary
+
+
+s2 <- summary(r$ps2$M0, par = c("alpha", "beta"))$summary
+s2.null <- summary(r$ps2.null$M0, par = c("alpha", "beta"))$summary
+s2.centered.t <- summary(r$ps2.centered.t$M0, par = c("alpha", "beta"))$summary
+s2.centered.n <- summary(r$ps2.centered.n$M0, par = c("alpha", "beta"))$summary
+
+
+s3 <- summary(r$ps3$M0, par = c("alpha", "beta"))$summary
+s3.null <- summary(r$ps3.null$M0, par = c("alpha", "beta"))$summary
+s3.centered.t <- summary(r$ps3.centered.t$M0, par = c("alpha", "beta"))$summary
+s3.centered.n <- summary(r$ps3.centered.n$M0, par = c("alpha", "beta"))$summary
+```
+
+
+## Coefficients
+
+```{r, fig.width=10, fig.height=10}
+par(mfrow = c(3, 3))
+plot(s1[-1, 1], s1.null[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+plot(s1[-1, 1], s1.centered.t[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+plot(s1[-1, 1], s1.centered.n[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+
+# s2
+plot(s2[-1, 1], s2.null[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+plot(s2[-1, 1], s2.centered.t[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+plot(s2[-1, 1], s2.centered.n[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+
+# s3
+plot(s3[-1, 1], s3.null[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+plot(s3[-1, 1], s3.centered.t[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+
+plot(s3[-1, 1], s3.centered.n[-1, 1], 
+     xlim = c(-1, 1), ylim = c(-1, 1))
+abline(0, 1)
+```
+
+
+
+
+
+<!-- ## PPC -->
+
+<!-- ```{r, fig.width=8, fig.height=8} -->
+<!-- g1 <- ggplot(data = ppc1[ppc1$prediction.level == "refSNP", ])+ -->
+<!--   facet_grid(facets = t+prediction.level~model)+ -->
+<!--   geom_errorbarh(aes(x = y.ppc.mean, y = y.real.mean, -->
+<!--                      xmin = y.ppc.L, xmax = y.ppc.H), -->
+<!--                  col = "darkgray")+ -->
+<!--   geom_point(aes(y = y.real.mean, x = y.ppc.mean), size = 1)+ -->
+<!--   geom_density2d(aes(y = y.real.mean, x = y.ppc.mean), col = "orange")+ -->
+<!--   geom_abline(intercept = 0, slope = 1)+ -->
+<!--   theme_bw()+ -->
+<!--   ggtitle(label = "1") -->
+<!-- g1.null <- ggplot(data = ppc1.null[ppc1.null$prediction.level == "refSNP", ])+ -->
+<!--   facet_grid(facets = t+prediction.level~model)+ -->
+<!--   geom_errorbarh(aes(x = y.ppc.mean, y = y.real.mean, -->
+<!--                      xmin = y.ppc.L, xmax = y.ppc.H), -->
+<!--                  col = "darkgray")+ -->
+<!--   geom_point(aes(y = y.real.mean, x = y.ppc.mean), size = 1)+ -->
+<!--   geom_density2d(aes(y = y.real.mean, x = y.ppc.mean), col = "orange")+ -->
+<!--   geom_abline(intercept = 0, slope = 1)+ -->
+<!--   theme_bw()+ -->
+<!--   ggtitle(label = "1-null") -->
+
+<!-- g2 <- ggplot(data = ppc2[ppc2$prediction.level == "refSNP", ])+ -->
+<!--   facet_grid(facets = t+prediction.level~model)+ -->
+<!--   geom_errorbarh(aes(x = y.ppc.mean, y = y.real.mean, -->
+<!--                      xmin = y.ppc.L, xmax = y.ppc.H), -->
+<!--                  col = "darkgray")+ -->
+<!--   geom_point(aes(y = y.real.mean, x = y.ppc.mean), size = 1)+ -->
+<!--   geom_density2d(aes(y = y.real.mean, x = y.ppc.mean), col = "orange")+ -->
+<!--   geom_abline(intercept = 0, slope = 1)+ -->
+<!--   theme_bw()+ -->
+<!--   ggtitle(label = "2") -->
+<!-- g2.null <- ggplot(data = ppc2.null[ppc2.null$prediction.level == "refSNP", ])+ -->
+<!--   facet_grid(facets = t+prediction.level~model)+ -->
+<!--   geom_errorbarh(aes(x = y.ppc.mean, y = y.real.mean, -->
+<!--                      xmin = y.ppc.L, xmax = y.ppc.H), -->
+<!--                  col = "darkgray")+ -->
+<!--   geom_point(aes(y = y.real.mean, x = y.ppc.mean), size = 1)+ -->
+<!--   geom_density2d(aes(y = y.real.mean, x = y.ppc.mean), col = "orange")+ -->
+<!--   geom_abline(intercept = 0, slope = 1)+ -->
+<!--   theme_bw()+ -->
+<!--   ggtitle(label = "2-null") -->
+
+<!-- g3 <- ggplot(data = ppc3[ppc3$prediction.level == "refSNP", ])+ -->
+<!--   facet_grid(facets = t+prediction.level~model)+ -->
+<!--   geom_errorbarh(aes(x = y.ppc.mean, y = y.real.mean, -->
+<!--                      xmin = y.ppc.L, xmax = y.ppc.H), -->
+<!--                  col = "darkgray")+ -->
+<!--   geom_point(aes(y = y.real.mean, x = y.ppc.mean), size = 1)+ -->
+<!--   geom_density2d(aes(y = y.real.mean, x = y.ppc.mean), col = "orange")+ -->
+<!--   geom_abline(intercept = 0, slope = 1)+ -->
+<!--   theme_bw()+ -->
+<!--   ggtitle(label = "3") -->
+<!-- g3.null <- ggplot(data = ppc3.null[ppc3.null$prediction.level == "refSNP", ])+ -->
+<!--   facet_grid(facets = t+prediction.level~model)+ -->
+<!--   geom_errorbarh(aes(x = y.ppc.mean, y = y.real.mean, -->
+<!--                      xmin = y.ppc.L, xmax = y.ppc.H), -->
+<!--                  col = "darkgray")+ -->
+<!--   geom_point(aes(y = y.real.mean, x = y.ppc.mean), size = 1)+ -->
+<!--   geom_density2d(aes(y = y.real.mean, x = y.ppc.mean), col = "orange")+ -->
+<!--   geom_abline(intercept = 0, slope = 1)+ -->
+<!--   theme_bw()+ -->
+<!--   ggtitle(label = "3-null") -->
+
+<!-- gridExtra::grid.arrange(g1, g1.null,  -->
+<!--                         g2, g2.null,  -->
+<!--                         g3, g3.null,  -->
+<!--                         ncol = 2) -->
+<!-- ``` -->
+
+
+
+<!-- ```{r, fig.width=10, fig.height=3} -->
+<!-- s1 <- summary(ps1$M0, par = c("alpha", "sigma", "mu_beta", "nu", "nu_help", "beta"))$summary -->
+<!-- s1.null <- summary(ps1.null$M0, par = c("alpha", "sigma", "mu_beta", "nu", "nu_help", "beta"))$summary -->
+<!-- s1 <- summary(ps1$M0, par = c("alpha", "sigma", "mu_beta", "nu", "nu_help", "beta"))$summary -->
+<!-- s2 <- summary(ps2$M0, par = c("alpha", "sigma", "mu_beta", "nu", "nu_help", "beta"))$summary -->
+
+<!-- par(mfrow = c(1, 3)) -->
+<!-- plot(s0[-1:-5, "mean"], s1[-1:-5, "mean"], xlab = "I", ylab = "II",  -->
+<!--      main = paste("df in I: ", round(s0[4, "mean"], digits = 2), ", ", -->
+<!--                   "df in II: ", round(s1[4, "mean"], digits = 2))) -->
+<!-- plot(s0[-1:-5, "mean"], s2[-1:-5, "mean"], xlab = "I", ylab = "III",  -->
+<!--      main = paste("df in I: ", round(s0[4, "mean"], digits = 2), ", ", -->
+<!--                   "df in III: ", round(s2[4, "mean"], digits = 2))) -->
+<!-- plot(s1[-1:-5, "mean"], s2[-1:-5, "mean"], xlab = "II", ylab = "III",  -->
+<!--      main = paste("df in II: ", round(s1[4, "mean"], digits = 2), ", ", -->
+<!--                   "df in III: ", round(s2[4, "mean"], digits = 2))) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+
+<!-- y <- d0$data.list$Yq[, 1] -->
+<!-- d <- matrix(data = 0, nrow = 300, ncol = 3) -->
+<!-- for(i in 1:300) { -->
+<!--   x1 <- d0$data.list$X[, i] -->
+<!--   d[i, 1] <- mean(y[x1 == 1])-mean(y[x1 == -1]) -->
+
+<!--   x2 <- d1$data.list$X[, i] -->
+<!--   d[i, 2] <- mean(y[x2 == 1])-mean(y[x2 == -1]) -->
+
+<!--   x3 <- d2$data.list$X[, i] -->
+<!--   d[i, 3] <- mean(y[x3 == 1])-mean(y[x3 == -1]) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- plot(d[, 1], d[, 3]) -->
+<!-- ``` -->
+

@@ -104,6 +104,7 @@ gridExtra::grid.arrange(
 
 
 ## LCMV
+
 ```{r}
 mc.lcmv <- get(load("~/MLgwas/dev.tests/lcmv.300.RData"))
 rm(mc)
@@ -117,6 +118,7 @@ rm(mc)
   * 3) Aggregate data along the hierarchy of the data => strains, snps
   
 #### Individual + Strain + SNP
+
 ```{r, fig.width=8, fig.height=8}
 gridExtra::grid.arrange(
   ggplot(data = mc.lcmv$ppc[mc.lcmv$ppc$parameter.level == "low" 
@@ -144,6 +146,7 @@ gridExtra::grid.arrange(
   * 1) We use parameters at a given level to predict the trait at that level (2 levels in M1, 1 in M0)
   
 #### Strain (only M1) + SNP
+
 ```{r, fig.width=8, fig.height=8}
 gridExtra::grid.arrange(
   ggplot(data = mc.lcmv$ppc[mc.lcmv$ppc$parameter.level == "mid" 
@@ -175,6 +178,7 @@ gridExtra::grid.arrange(
 
 
 ## TNF
+
 ```{r}
 mc.tnf <- get(load("~/MLgwas/dev.tests/tnf.300.RData"))
 rm(mc)
@@ -188,6 +192,7 @@ rm(mc)
   * 3) Aggregate data along the hierarchy of the data => strains, snps
   
 #### Individual + Strain + SNP
+
 ```{r, fig.width=8, fig.height=16}
 gridExtra::grid.arrange(
   ggplot(data = mc.tnf$ppc[mc.tnf$ppc$parameter.level == "low" 
@@ -233,6 +238,7 @@ gridExtra::grid.arrange(
   * 1) We use parameters at a given level to predict the trait at that level (2 levels in M1, 1 in M0)
   
 #### Strain (only M1) + SNP
+
 ```{r, fig.width=8, fig.height=16}
 gridExtra::grid.arrange(
   ggplot(data = mc.tnf$ppc[mc.tnf$ppc$parameter.level == "mid" 
@@ -280,6 +286,7 @@ gridExtra::grid.arrange(
 
 
 ## Violinplots
+
 ```{r, fig.width=8, fig.height=4}
 ggplot(data = mc.vsv$ppc)+
   facet_grid(facets = t~parameter.level+prediction.level, scales = "free")+

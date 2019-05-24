@@ -5,6 +5,8 @@
 src/*.o
 src/*.so
 src/*.dll
+dev.tests/
+out.manuscript/
 src/stan_files/*.o
 src/stan_files/*.so
 src/stan_files/*.dll

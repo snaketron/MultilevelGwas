@@ -60,19 +60,29 @@ getStanData <- function(genotype,
   # Convert genphen data to stan data
   getStanFormat <- function(f.data) {
 
-
     # Split SNP into pairs of genotypes
-    getX <- function(x) {
+    getX <- function(x, X.setup) {
       xs <- unique(x)
-      X <- numeric(length = length(x))
-      xs.dir <- sample(x = c(1, -1),
-                       size = 2,
-                       replace = FALSE)
 
-      # map genotypes to 1s and -1s
-      for(i in 1:length(xs)) {
-        X[x == xs[i]] <- xs.dir[i]
+      # Is X setup with 1s and -1s?
+      # * Yes = leave it as it is
+      # * No = transform
+      if(X.setup == FALSE) {
+        X <- numeric(length = length(x))
+        xs.dir <- sample(x = c(1, -1),
+                         size = 2,
+                         replace = FALSE)
+
+        # map genotypes to 1s and -1s
+        for(i in 1:length(xs)) {
+          X[x == xs[i]] <- xs.dir[i]
+        }
       }
+      else {
+        X <- x
+      }
+
+
 
       xs <- c(xs, NA)
 
@@ -108,7 +118,10 @@ getStanData <- function(genotype,
 
     # make huge matrix with predictors
     X <- f.data$genotype
-    X <- apply(X = X, MARGIN = 2, FUN = getX)
+
+
+    X.setup <- all(X == 1 | X == -1)
+    X <- apply(X = X, MARGIN = 2, FUN = getX, X.setup = X.setup)
     for(i in 1:length(X)) {
       X[[i]]$xmap$site <- i
     }

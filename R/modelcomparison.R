@@ -118,14 +118,12 @@ getIC <- function(ps) {
 
 # Function:
 # Posterior prediction multicore
-
-# Function:
-# Posterior prediction
 getPpcMc <- function(ps,
                      gt.data,
                      models,
                      hdi.level,
-                     cores = 6) {
+                     cores = 4,
+                     debug = F) {
 
 
   # multicore classification
@@ -133,66 +131,65 @@ getPpcMc <- function(ps,
   doParallel::registerDoParallel(cl)
 
 
-  runPpc <- function(ext, gt.data,
-                     model, hdi.level) {
+  runPpcMono <- function(ext, gt.data,
+                         model, hdi.level) {
 
-    # subsample get posterior
+
+    cat("Model:", model, "\n", sep = '')
+
+    # get posterior  #TODO: fix 100->500 or 1,000
     ext <- data.frame(ext)
     ext <- ext[sample(x = 1:nrow(ext),
-                      size = min(c(500, nrow(ext))),
+                      size = min(c(250, nrow(ext))),
                       replace = TRUE), ]
 
-
     ppc.out <- c()
-    for(s in 1:gt.data$Ns) {
-      o <- getPpcLowestLevel(ext = ext,
-                             gt.data = gt.data,
-                             model = model,
-                             hdi.level = hdi.level,
-                             s = s)
-      ppc.out <- rbind(ppc.out, o)
+    ppc.out <- rbind(ppc.out, getPpcVertical(ext = ext,
+                                             gt.data = gt.data,
+                                             model = model,
+                                             hdi.level = hdi.level))
 
-      if(!models[i] %in% c("M0", "M0c")) {
-        u <- getPpcMidLevel(ext = ext,
-                            gt.data = gt.data,
-                            model = model,
-                            hdi.level = hdi.level,
-                            s = s)
-        ppc.out <- rbind(ppc.out, u)
-      }
+    ppc.out <- rbind(ppc.out, getPpcHorizontal(ext = ext,
+                                               gt.data = gt.data,
+                                               model = model,
+                                               hdi.level = hdi.level))
 
-
-
-      # progress
-      if(s %% 5 == 0) {
-        cat(model, ":", s, "/", gt.data$Ns, "\n", sep = '')
-      }
-    }
-    # set model
-    ppc.out$model <- model
     return (ppc.out)
   }
 
 
 
-  # MC
-  ppc.list <- (foreach(i = 1:length(ps),
-                       .export = c("getHdi",
-                                   "getPpcLowestLevel",
-                                   "getPpcMidLevel")) %dopar%
-                 runPpc(p = rstan::extract(object = ps[[i]],
-                                           pars = c("z", "log_lik", "log_lik2"),
-                                           include = FALSE),
-                        gt.data = gt.data,
-                        model= models[i],
-                        hdi.level = hdi.level))
+  if(debug) {
+    ppc.list <- (foreach(i = 1:length(ps),
+                         .export = c("getHdi",
+                                     "getPpcVertical",
+                                     "getPpcHorizontal")) %dopar%
+                   runPpcMono(ext = ps[[i]],
+                              gt.data = gt.data,
+                              model = models[i],
+                              hdi.level = hdi.level))
+  }
+  else {
+    ppc.list <- (foreach(i = 1:length(ps),
+                         .export = c("getHdi",
+                                     "getPpcVertical",
+                                     "getPpcHorizontal")) %dopar%
+                   runPpcMono(ext = rstan::extract(object = ps[[i]],
+                                                   include = FALSE,
+                                                   pars = c("z", "log_lik",
+                                                            "log_lik2")),
+                              gt.data = gt.data,
+                              model = models[i],
+                              hdi.level = hdi.level))
+  }
 
 
-  # multicore classification
-  # parallel::stopCluster(cl = cl)
-  # doParallel::stopImplicitCluster()
 
-  names(ppc.list) <- names(ps)
+  # top cluster
+  parallel::stopCluster(cl = cl)
+  doParallel::stopImplicitCluster()
+
+  ppc.list <- do.call(rbind, ppc.list)
   return (ppc.list)
 }
 
@@ -203,25 +200,31 @@ getPpcMc <- function(ps,
 getPpc <- function(ps,
                    gt.data,
                    models,
-                   hdi.level) {
-
+                   hdi.level,
+                   debug = F) {
 
   ppc.out <- c()
   for(i in 1:length(models)) {
     cat("Model:", models[i], "\n", sep = '')
 
-    # get posterior
-    ext <- data.frame(rstan::extract(object = ps[[i]],
-                                     pars = c("z", "log_lik", "log_lik2"),
-                                     include = FALSE))
-    ext <- ext[sample(x = 1:nrow(ext),
-                      size = min(c(500, nrow(ext))),
-                      replace = TRUE), ]
 
-    ppc.out <- rbind(ppc.out, getPpcHierarchical(ext = ext,
-                                                 gt.data = gt.data,
-                                                 model = models[i],
-                                                 hdi.level = hdi.level))
+    if(debug) {
+      ext <- data.frame(ps[[i]])
+    }
+    else {
+      # get posterior
+      ext <- data.frame(rstan::extract(object = ps[[i]],
+                                       pars = c("z", "log_lik", "log_lik2"),
+                                       include = FALSE))
+      ext <- ext[sample(x = 1:nrow(ext),
+                        size = min(c(500, nrow(ext))),
+                        replace = TRUE), ]
+    }
+
+    # ppc.out <- rbind(ppc.out, getPpcVertical(ext = ext,
+    #                                          gt.data = gt.data,
+    #                                          model = models[i],
+    #                                          hdi.level = hdi.level))
 
     ppc.out <- rbind(ppc.out, getPpcHorizontal(ext = ext,
                                                gt.data = gt.data,
@@ -232,5 +235,7 @@ getPpc <- function(ps,
   }
   return (ppc.out)
 }
+
+
 
 
