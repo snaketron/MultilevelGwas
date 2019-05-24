@@ -1,3 +1,28 @@
+functions {
+  int num_matches(int[] x, int a) {
+    int n = 0;
+    for (i in 1:size(x))
+      if (x[i] == a)
+       n += 1;
+    return n;
+  }
+
+  int[] which_equal(int[] x, int a) {
+    int len = num_matches(x, a);
+    // vector[len] match_positions;
+    int match_positions[len];
+    int pos = 1;
+    for (i in 1:size(x)) {
+      if (x[i] == a) {
+        match_positions[pos] = x[i];
+        pos += 1;
+      }
+    }
+    return match_positions;
+  }
+}
+
+
 data {
   int N; // number of all entries
   int Ntq; // number of traits
@@ -15,8 +40,8 @@ parameters {
   vector [Ntq+Ntd] grand_mu_beta;
   vector <lower = 0> [Ntq] sigma;
   vector <lower = 0> [Ntq+Ntd] sigma_beta;
-  vector <lower = 0> [Ntq+Ntd] grand_sigma_beta;
-  // vector <lower = 0> [Ntq+Ntd] grand_sigma_u;
+  vector <lower = 0> [Ntq+Ntd] nu;
+  vector <lower = 2> [Ntq+Ntd] nu_help;
   matrix [Ns, Nk] z [Ntq+Ntd];
   matrix [Ntq+Ntd, Ns] grand_z;
 
@@ -28,7 +53,7 @@ transformed parameters {
 
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
-      mu_beta[t][s] = grand_mu_beta[t] + grand_sigma_beta[t]*grand_z[t,s];
+      mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t,s];
     }
   }
 
@@ -36,7 +61,6 @@ transformed parameters {
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
       for(k in 1:Nk) {
-        // normal
         beta[t][s, k] = mu_beta[t, s] + z[t][s, k]*sigma_beta[t];
       }
     }
@@ -44,56 +68,33 @@ transformed parameters {
 }
 
 model {
-  for(i in 1:N) {
+  for(k in 1:Nk) {
+    int ks [num_matches(K, k)] = which_equal(K, k);
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yq[i,t] ~ normal(alpha[t] + rows_dot_product(X[i], to_vector(beta[t][, K[i]])), sigma[t]);
+        // Yq[ks, t] ~ normal(alpha[t] + X[ks[1]] .* beta[t][, k], sigma[t]);
+        Yq[ks, t] ~ normal(alpha[t] + X[1] .* beta[t][, k], sigma[t]);
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yd[i,d] ~ bernoulli_logit(alpha[d+Ntq] + rows_dot_product(X[i], to_vector(beta[d+Ntq][, K[i]])));
+        // Yd[ks, d] ~ bernoulli_logit(alpha[d+Ntq] +  X[ks[1]] .* beta[d+Ntq][, k]);
+        Yd[ks, d] ~ bernoulli_logit(alpha[d+Ntq] +  X[1] .* beta[d+Ntq][, k]);
       }
     }
   }
 
   alpha ~ student_t(1, 0, 100);
-  // to_vector(grand_mu_beta) ~ student_t(1, 0, 10);
-  to_vector(grand_mu_beta) ~ double_exponential(0, 1);
-
+  to_vector(grand_mu_beta) ~ student_t(1, 0, 10);
 
   sigma ~ cauchy(0, 5);
   sigma_beta ~ cauchy(0, 5);
-  grand_sigma_beta ~ cauchy(0, 5);
-  // grand_sigma_u ~ chi_square(sigma_beta);
+  (nu_help-2) ~ exponential(0.5);
+  nu ~ chi_square(nu_help);
 
   // priors on the dummy z's
   for(t in 1:(Ntq+Ntd)) {
     to_vector(z[t]) ~ normal(0, 1);
     grand_z[t, ] ~ normal(0, 1);
-  }
-}
-
-generated quantities {
-  matrix [N, Ns] log_lik2 [Ntq+Ntd];
-  matrix [N, Ntq+Ntd] log_lik;
-
-  for(i in 1:N) {
-    for(s in 1:Ns) {
-      if(Ntq > 0) {
-        for(t in 1:Ntq) {
-          log_lik2[t][i,s] = normal_lpdf(Yq[i,t] | alpha[t]+X[i][s]*beta[t][s,K[i]], sigma[t]);
-        }
-      }
-      if(Ntd > 0) {
-        for(d in 1:Ntd) {
-          log_lik2[d+Ntq][i,s] = bernoulli_logit_lpmf(Yd[i,d] | alpha[d+Ntq]+X[i][s]*beta[d+Ntq][s,K[i]]);
-        }
-      }
-    }
-
-    for(t in 1:(Ntq+Ntd)) {
-      log_lik[i, t] = mean(log_lik2[t][i, ]);
-    }
   }
 }

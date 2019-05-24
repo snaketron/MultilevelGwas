@@ -1,5 +1,5 @@
 ---
-title: "Performance M0"
+title: "Performance M0*"
 author: "SK"
 date: "5/23/2019"
 output: html_document
@@ -29,8 +29,8 @@ source("R/modelcomparison.R")
 source("R/ppc.R")
 
 # models
-m0 <- rstan::stan_model(file = "src/stan_files/M0.stan")
-m0fast <- rstan::stan_model(file = "src/stan_files/M0fast.stan")
+m0 <- rstan::stan_model(file = "src/stan_files/M0c.stan")
+m0fast <- rstan::stan_model(file = "src/stan_files/M0cfast.stan")
 ```
 
 
@@ -43,14 +43,14 @@ m0fast <- rstan::stan_model(file = "src/stan_files/M0fast.stan")
 # Sim 1
 ## Simulate data:
   * N = 80 -> number of individuals
-  * S = 500 -> number of SNPs
+  * S = 200 -> number of SNPs
   * p.signal = 0.9 -> proportion of background SNPs
   * No strains
 
 ```{r}
 # 1. simulate data
 N <- 80
-S <- 500
+S <- 200
 p.signal = 0.9
 
 
@@ -62,6 +62,10 @@ beta <- replicate(n = N, ifelse(test = runif(n = 1, min = 0, max = 1) > 0.5,
                                 no = rnorm(n = 1, mean = 4, sd = 1)))
 alpha <- 0
 Y <- alpha + beta
+
+# cor <- rnorm(n = N, mean = 0.5, sd = 0.25)
+cor <- rnorm(n = N, mean = 0.5, sd = 1)
+Y2 <- alpha + beta * cor
 
 # simulate genotypes
 X <- matrix(data = NA, nrow = N, ncol = S)
@@ -87,10 +91,10 @@ for(i in 1:S) {
 rm(i)
 
 # pack data for MLgwas
-Yq <- matrix(data = Y, ncol = 1)
+Yq <- matrix(data = cbind(Y, Y2), ncol = 2)
 Yd <- matrix(data = 0, ncol = 0, nrow = N)
 data.list <- list(N = N,
-           Ntq = 1,
+           Ntq = 2,
            Ntd = 0,
            Ns = S,
            Yq = Yq,
@@ -101,14 +105,14 @@ data.list <- list(N = N,
 
 gt.data <- getStanData(genotype = X,
                        traits = Yq,
-                       trait.type = "Q",
+                       trait.type = c("Q", "Q"),
                        rep(x = 1, times = N))
 
 
 d1 <- list(data.list = data.list, 
            gt.data = gt.data)
 
-rm(X, N, S, Y, Yq, Yd, data.list, gt.data, 
+rm(X, N, S, Y, Y2, Yq, Yd, cor, data.list, gt.data, 
    signal.snps, p.signal, beta, alpha, i, X.vec)
 ```
 
@@ -148,5 +152,26 @@ p.s <- summary(p, par = "beta")$summary[, "mean"]
 pfast.s <- summary(pfast, par = "beta")$summary[, "mean"]
 plot(p.s, pfast.s)
 abline(0, 1, col = "red")
+```
+
+
+```{r, fig.width=5, fig.height=5}
+summary(p, par = "rho")$summary[, "mean"]
+summary(pfast, par = "rho")$summary[, "mean"]
+```
+
+
+```{r}
+summary(p, par = "L_rho")$summary[, "mean"]
+summary(pfast, par = "L_rho")$summary[, "mean"]
+```
+
+
+```{r}
+cor.test(d1$gt.data$Y[, 1], d1$gt.data$Y[, 2])
+```
+
+```{r}
+cor.test(method = "spearman", d1$gt.data$Y[, 1], d1$gt.data$Y[, 2])
 ```
 

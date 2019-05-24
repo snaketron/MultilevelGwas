@@ -47,12 +47,12 @@ model {
   for(i in 1:N) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yq[i,t] ~ normal(alpha[t] + rows_dot_product(X[i], to_vector(beta[t][, K[i]])), sigma[t]);
+        Yq[i,t] ~ normal(alpha[t] + X[i] .* beta[t][, K[i]], sigma[t]);
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yd[i,d] ~ bernoulli_logit(alpha[d+Ntq] + rows_dot_product(X[i], to_vector(beta[d+Ntq][, K[i]])));
+        Yd[i,d] ~ bernoulli_logit(alpha[d+Ntq] + X[i] .* beta[d+Ntq][, K[i]]);
       }
     }
   }
