@@ -1,28 +1,3 @@
-functions {
-  int num_matches(int[] x, int a) {
-    int n = 0;
-    for (i in 1:size(x))
-      if (x[i] == a)
-       n += 1;
-    return n;
-  }
-
-  int[] which_equal(int[] x, int a) {
-    int len = num_matches(x, a);
-    // vector[len] match_positions;
-    int match_positions[len];
-    int pos = 1;
-    for (i in 1:size(x)) {
-      if (x[i] == a) {
-        match_positions[pos] = x[i];
-        pos += 1;
-      }
-    }
-    return match_positions;
-  }
-}
-
-
 data {
   int N; // number of all entries
   int Ntq; // number of traits
@@ -31,8 +6,7 @@ data {
   int Nk; // number of all strains
   real Yq[N, Ntq] ; // number of hits response
   int Yd[N, Ntd] ; // number of hits response
-  // vector [Ns] X [N]; // index of all individuals
-  matrix [Ns, N] X; // index of all individuals
+  vector [Ns] X [N]; // index of all individuals
   int K[N]; //index to all strains
 }
 
@@ -52,30 +26,28 @@ transformed parameters {
   matrix [Ns, Nk] beta [Ntq+Ntd];
   matrix [Ntq+Ntd, Ns] mu_beta;
 
-  for(s in 1:Ns) {
-    for(t in 1:(Ntq+Ntd)) {
-      mu_beta[t, s] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t,s];
-    }
+  for(t in 1:(Ntq+Ntd)) {
+    mu_beta[t, ] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t, ];
   }
 
 
-  for(k in 1:Nk) {
+  for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
-      for(t in 1:(Ntq+Ntd)) {
-        beta[t][s, k] = mu_beta[t, s] + z[t][s, k]*sigma_beta[t];
-      }
+      beta[t][s,] = mu_beta[t, s] + z[t][s,]*sigma_beta[t];
     }
   }
 }
-//Exception: elt_multiply: Columns of m1 (5) and columns of m2 (1) must match in size  (in 'model1a48b7b95_M1fast' at line 78)
+
 model {
-  for(k in 1:Nk) {
-    int ks_len = num_matches(K, k);
-    int ks [ks_len] = which_equal(K, k);
+  for(i in 1:N) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        real Ytemp [ks_len] = Yq[ks, t];
-        Ytemp ~ normal(to_vector((alpha[t] + X[, ks] .* to_matrix(beta[t][, k]))'), sigma[t]);
+        Yq[i,t] ~ normal(alpha[t] + X[i] .* beta[t][, K[i]], sigma[t]);
+      }
+    }
+    if(Ntd > 0) {
+      for(d in 1:Ntd) {
+        Yd[i,d] ~ bernoulli_logit(alpha[d+Ntq] + X[i] .* beta[d+Ntq][, K[i]]);
       }
     }
   }
