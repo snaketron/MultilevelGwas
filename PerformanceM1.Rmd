@@ -47,7 +47,6 @@ m1fast <- rstan::stan_model(file = "src/stan_files/M1fast.stan")
   * N = 20*5 -> number of individuals
   * S = 100 -> number of SNPs
   * p.signal = 0.9 -> proportion of background SNPs
-  * No strains
 
 ```{r}
 # 1. simulate data
