@@ -53,7 +53,7 @@ m1fast <- rstan::stan_model(file = "src/stan_files/M1fast.stan")
 K <- 20
 Nk <- 5
 N <- K*Nk
-S <- 100
+S <- 200
 p.signal = 0.9
 
 
@@ -135,7 +135,7 @@ d1 <- list(data.list = data.list,
 
 rm(X, N, S, Y, Yq, Yd, data.list, gt.data, K, 
    strains, Nk, beta.mu, signal.snps, p.signal, 
-   beta, alpha, i, X.vec)
+   beta, alpha, X.vec)
 ```
 
 
@@ -152,8 +152,8 @@ p <- rstan::sampling(object = m1,
                      warmup = 500,
                      chains = 4,
                      cores = 4,
-                     control = list(adapt_delta = 0.99),
-                     seed = 43397180)
+                     control = list(adapt_delta = 0.95),
+                     seed = 24245656)
 
 
 
@@ -163,8 +163,8 @@ pfast <- rstan::sampling(object = m1fast,
                      warmup = 500,
                      chains = 4,
                      cores = 4,
-                     control = list(adapt_delta = 0.99),
-                     seed = 43397180)
+                     control = list(adapt_delta = 0.95),
+                     seed = 24245656)
 ```
 
 

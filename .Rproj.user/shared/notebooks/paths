@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+/home/simo/Desktop/work/workspaces/r/MLgwas/PerformanceM1.Rmd="C4D40D2C"
+/home/simo/Desktop/work/workspaces/r/MLgwas/R/bayesian.R="5847EA03"
+/home/simo/Desktop/work/workspaces/r/MLgwas/R/modelcomparison.R="934C00A7"
+/home/simo/Desktop/work/workspaces/r/MLgwas/R/util.R="82D88D1B"
+/home/simo/Desktop/work/workspaces/r/MLgwas/dev.tests/TestDev.R="4060424B"
+=======
 /home/nfs_data/simo/MLgwas/CovarianceEffect.Rmd="93EA6BA4"
 /home/nfs_data/simo/MLgwas/HierarchyShrinkage.Rmd="5D1E9305"
 /home/nfs_data/simo/MLgwas/LICENSE="F1F25729"
@@ -60,3 +67,4 @@
 /home/nfs_data/simo/MiceGwas/model_var/var_strain_loglik.stan="A4CF1B75"
 /home/nfs_data/simo/MiceGwas/model_var/var_trait.stan="61A4C846"
 /home/nfs_data/simo/MiceGwas/model_var/var_trait_loglik.stan="55304932"
+>>>>>>> a58ac4fc2c528fee7484196f0d57850ec6e2f01a

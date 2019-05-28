@@ -30,10 +30,16 @@ transformed parameters {
     mu_beta[t, ] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t, ];
   }
 
+<<<<<<< HEAD
+  for(t in 1:(Ntq+Ntd)) {
+    for(k in 1:Nk) {
+      beta[t][,k] = to_vector(mu_beta[t, ]) + z[t][,k]*sigma_beta[t];
+=======
 
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
       beta[t][s,] = mu_beta[t, s] + z[t][s,]*sigma_beta[t];
+>>>>>>> a58ac4fc2c528fee7484196f0d57850ec6e2f01a
     }
   }
 }
@@ -63,6 +69,6 @@ model {
   // priors on the dummy z's
   for(t in 1:(Ntq+Ntd)) {
     to_vector(z[t]) ~ normal(0, 1);
-    grand_z[t, ] ~ normal(0, 1);
   }
+  to_vector(grand_z) ~ normal(0, 1);
 }
