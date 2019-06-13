@@ -1,0 +1,169 @@
+---
+title: "Mixed-effect model"
+author: "SK"
+date: "6/11/2019"
+output: html_document
+---
+
+
+
+
+
+```{r setup, include = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = FALSE, 
+                      warning = FALSE, message = FALSE)
+```
+
+
+# Two models (M1 = Cov+ and M1* = Cov-)
+
+```{r, results = "hide", include = FALSE}
+require(rstan)
+rstan_options(auto_write = TRUE)
+require(loo)
+require(ggplot2)
+require(stringdist)
+
+
+source("R/main.R")
+source("R/util.R")
+source("R/bayesian.R")
+source("R/statlearn.R")
+source("R/modelcomparison.R")
+source("R/ppc.R")
+
+# models
+m <- rstan::stan_model(file = "src/stan_files/mm_loglik.stan")
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+# 1. simulate data
+K <- 20
+Nk <- 4
+N <- K*Nk
+S <- 200
+p.signal = 0.9
+
+
+set.seed(seed = 42133214)
+
+# simulate slopes
+beta <- replicate(n = K, ifelse(test = rep(x = runif(n = 1, min = 0, max = 1), times = Nk) > 0.5,
+                                yes = rnorm(n = Nk, mean = runif(n = 1, min = 0, max = 2), sd = 1),
+                                no = rnorm(n = Nk, mean = runif(n = 1, min = 3, max = 5), sd = 1)))
+
+beta.mu <- colMeans(beta)
+beta <- as.vector(beta)
+
+
+alpha <- 0
+Y <- alpha + beta
+
+# simulate genotypes
+X <- matrix(data = NA, nrow = N, ncol = S)
+signal.snps <- c()
+for(i in 1:S) {
+  if(runif(n = 1, min = 0, max = 1) >= p.signal) {
+    signal.snps <- c(signal.snps, i)
+    X.vec <- sapply(X = (beta.mu-min(beta.mu))/(max(beta.mu)-min(beta.mu)), FUN = rbinom, n = 1, size = 1)
+    X.vec <- rep(x = X.vec, each = Nk)
+    if(runif(n = 1, min = 0, max = 1) > 0.5) {
+      X.vec[X.vec == 0] <- -1
+      X[, i] <- X.vec
+    }
+    else {
+      X.vec[X.vec == 1] <- -1
+      X.vec[X.vec == 0] <- 1
+      X[, i] <- X.vec
+    }
+  }
+  else {
+    X.vec <- replicate(n = K, sapply(X = rep(x = sample(x = c(0, 1), size = 1, replace = F), times = Nk), 
+                                     FUN = rbinom, n = 1, size = 1))
+    X.vec <- as.vector(X.vec)
+    if(runif(n = 1, min = 0, max = 1) > 0.5) {
+      X.vec[X.vec == 0] <- -1
+      X[, i] <- X.vec
+    }
+    else {
+      X.vec[X.vec == 1] <- -1
+      X.vec[X.vec == 0] <- 1
+      X[, i] <- X.vec
+    }
+    X[, i] <- X.vec
+  }
+}
+rm(i)
+
+
+Xstr <- apply(X = X, MARGIN = 1, FUN = paste, collapse = '')
+Xstr <- gsub(pattern = "\\-1", replacement = '0', x = Xstr)
+Xstr <- stringdist::stringdistmatrix(a = Xstr, b = Xstr, method = "hamming")
+Xstr <- Xstr/200
+sigma_cov <- cor(x = Xstr, method = "pearson", use = "complete.obs")
+
+
+# pack data for MLgwas
+Yq <- matrix(data = Y, ncol = 1)
+Yd <- matrix(data = 0, ncol = 0, nrow = N)
+strains <- rep(x = 1:K, each = Nk)
+data.list <- list(N = N,
+                  Nk = K,
+                  K = strains,
+                  Ntq = 1,
+                  Ntd = 0,
+                  Ns = S,
+                  Yq = Yq,
+                  Yd = Yd,
+                  X = X,
+                  p.signal = p.signal,
+                  signal.snps = signal.snps,
+                  strains = strains,
+                  sigma_cov = sigma_cov)
+
+gt.data <- getStanData(genotype = X,
+                       traits = Yq,
+                       trait.type = "Q",
+                       strains = strains)
+
+
+d1 <- list(data.list = data.list, 
+           gt.data = gt.data)
+
+rm(X, N, S, Y, Yq, Yd, data.list, gt.data, K, 
+   strains, Nk, beta.mu, signal.snps, p.signal, 
+   beta, alpha, X.vec, Xstr, sigma_cov)
+```
+
+
+
+
+```{r}
+# d1$data.list$X <- t(d1$data.list$X)
+# sigma_cov <- d1$data.list$sigma_cov
+# sigma_cov_pd <- nearPD(x =sigma_cov, corr = T, )
+# d1$data.list$sigma_cov <- sigma_cov_pd$mat
+# X <- d1$data.list$X
+# X[which(X == -1, arr.ind = T)] <- 0
+# X[1, 1] <- as.character(X[1, 1])
+# m.kin <- emma::emma.kinship(snps = X, method = "additive", use = "all")
+# d1$data.list$sigma_cov <- m.kin
+
+p <- rstan::sampling(object = m,
+                     data = d1$data.list,
+                     iter = 3000,
+                     warmup = 1500,
+                     chains = 4,
+                     cores = 4,
+                     control = list(adapt_delta = 0.9))
+```
+

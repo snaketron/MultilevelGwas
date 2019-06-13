@@ -30,7 +30,7 @@ source("R/ppc.R")
 
 # models
 m0 <- rstan::stan_model(file = "src/stan_files/M0.stan")
-m0fast <- rstan::stan_model(file = "src/stan_files/M0fast.stan")
+m0fast <- rstan::stan_model(file = "src/stan_files/fastM0.stan")
 ```
 
 

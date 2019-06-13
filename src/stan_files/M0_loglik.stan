@@ -50,7 +50,6 @@ model {
   }
 }
 
-
 generated quantities {
   matrix [N, Ns] log_lik2 [Ntq+Ntd];
   matrix [N, Ntq+Ntd] log_lik;

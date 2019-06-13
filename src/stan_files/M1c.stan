@@ -35,7 +35,6 @@ transformed parameters {
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
       for(k in 1:Nk) {
-        // normal
         beta[t][s, k] = mu_beta[t, s] + z[t][s, k]*sigma_beta[t];
       }
     }
