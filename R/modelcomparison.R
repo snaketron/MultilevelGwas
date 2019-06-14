@@ -126,68 +126,107 @@ getPpcMc <- function(ps,
                      debug = F) {
 
 
-  # multicore classification
-  cl <- parallel::makeCluster(cores)
-  doParallel::registerDoParallel(cl)
 
 
-  runPpcMono <- function(ext, gt.data,
-                         model, hdi.level) {
+
+  # runPpcMono <- function(ext, gt.data,
+  #                        model, hdi.level) {
+  #
+  #
+  #   cat("Model:", model, "\n", sep = '')
+  #
+  #   # get posterior  #TODO: fix 100->500 or 1,000
+  #   ext <- data.frame(ext)
+  #   ext <- ext[sample(x = 1:nrow(ext),
+  #                     size = min(c(250, nrow(ext))),
+  #                     replace = TRUE), ]
+  #
+  #   ppc.out <- c()
+  #   ppc.out <- rbind(ppc.out, getPpcVertical(ext = ext,
+  #                                            gt.data = gt.data,
+  #                                            model = model,
+  #                                            hdi.level = hdi.level))
+  #
+  #   ppc.out <- rbind(ppc.out, getPpcHorizontal(ext = ext,
+  #                                              gt.data = gt.data,
+  #                                              model = model,
+  #                                              hdi.level = hdi.level))
+  #
+  #   return (ppc.out)
+  # }
 
 
+
+  runPpcMono <- function(x,
+                         gt.data,
+                         hdi.level) {
+
+    model <- x@model_name
     cat("Model:", model, "\n", sep = '')
 
     # get posterior  #TODO: fix 100->500 or 1,000
-    ext <- data.frame(ext)
-    ext <- ext[sample(x = 1:nrow(ext),
-                      size = min(c(250, nrow(ext))),
+    x <- rstan::extract(object = x)
+    x <- data.frame(x)
+    x <- x[sample(x = 1:nrow(x),
+                      size = min(c(250, nrow(x))),
                       replace = TRUE), ]
 
-    ppc.out <- c()
-    ppc.out <- rbind(ppc.out, getPpcVertical(ext = ext,
-                                             gt.data = gt.data,
-                                             model = model,
-                                             hdi.level = hdi.level))
-
-    ppc.out <- rbind(ppc.out, getPpcHorizontal(ext = ext,
-                                               gt.data = gt.data,
-                                               model = model,
-                                               hdi.level = hdi.level))
+    ppc.out <- getPpcVertical(ext = x,
+                              gt.data = gt.data,
+                              model = model,
+                              hdi.level = hdi.level)
+    ppc.out <- rbind(ppc.out,
+                     getPpcHorizontal(ext = x,
+                                      gt.data = gt.data,
+                                      model = model,
+                                      hdi.level = hdi.level))
 
     return (ppc.out)
   }
 
 
 
-  if(debug) {
-    ppc.list <- (foreach(i = 1:length(ps),
-                         .export = c("getHdi",
-                                     "getPpcVertical",
-                                     "getPpcHorizontal")) %dopar%
-                   runPpcMono(ext = ps[[i]],
-                              gt.data = gt.data,
-                              model = models[i],
-                              hdi.level = hdi.level))
-  }
-  else {
-    ppc.list <- (foreach(i = 1:length(ps),
-                         .export = c("getHdi",
-                                     "getPpcVertical",
-                                     "getPpcHorizontal")) %dopar%
-                   runPpcMono(ext = rstan::extract(object = ps[[i]],
-                                                   include = FALSE,
-                                                   pars = c("z", "log_lik",
-                                                            "log_lik2")),
-                              gt.data = gt.data,
-                              model = models[i],
-                              hdi.level = hdi.level))
-  }
+  ppc.list <- lapply(X = ps,
+                     FUN = runPpcMono,
+                     gt.data = gt.data,
+                     hdi.level = hdi.level)
+
+  ppc.list <- parallel::mclapply(X = ps,
+                                 FUN = runPpcMono,
+                                 gt.data = gt.data,
+                                 hdi.level = hdi.level,
+                                 mc.cores = cores)
 
 
-
+  # multicore classification
+  # cl <- parallel::makeCluster(cores)
+  # doParallel::registerDoParallel(cl)
+  # if(debug) {
+  #   ppc.list <- (foreach(i = 1:length(ps),
+  #                        .export = c("getHdi",
+  #                                    "getPpcVertical",
+  #                                    "getPpcHorizontal")) %dopar%
+  #                  runPpcMono(ext = ps[[i]],
+  #                             gt.data = gt.data,
+  #                             model = models[i],
+  #                             hdi.level = hdi.level))
+  # }
+  # else {
+  #   ppc.list <- (foreach(i = 1:length(ps),
+  #                        .export = c("getHdi",
+  #                                    "getPpcVertical",
+  #                                    "getPpcHorizontal")) %dopar%
+  #                  runPpcMono(ext = rstan::extract(object = ps[[i]],
+  #                                                  include = FALSE,
+  #                                                  pars = c("z", "log_lik",
+  #                                                           "log_lik2")),
+  #                             gt.data = gt.data,
+  #                             model = models[i],
+  #                             hdi.level = hdi.level))
+  # }
   # top cluster
-  parallel::stopCluster(cl = cl)
-  doParallel::stopImplicitCluster()
+  # parallel::stopCluster(cl = cl)
+  # doParallel::stopImplicitCluster()
 
   ppc.list <- do.call(rbind, ppc.list)
   return (ppc.list)

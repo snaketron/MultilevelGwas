@@ -295,12 +295,14 @@ getPpcHorizontal <- function(ext, gt.data,
 
 # Function:
 # Posterior prediction from bottom to top
-getPpcVertical <- function(ext, gt.data,
-                           model, hdi.level) {
+getPpcVertical <- function(ext,
+                           gt.data,
+                           model,
+                           hdi.level) {
 
   # Function:
   # Use the most specific parameters to make predictions at different levels
-  getPpcPosterior <- function(ext, gt.data, s, model) {
+  getPpcPosterior <- function(x, ext, gt.data, model) {
 
     getPar <- function(t, s, k, gt.data, model) {
       if(model == "M0" | model == "M0c") {
@@ -441,25 +443,15 @@ getPpcVertical <- function(ext, gt.data,
 
 
     return(getPpc(p = ext, gt.data = gt.data,
-                  s = s, model = model))
+                  s = x, model = model))
   }
 
 
-
-  ppc.out <- vector(mode = "list", length = gt.data$Ns)
-  for(s in 1:gt.data$Ns) {
-    ppc.out[[s]] <- getPpcPosterior(ext = ext,
-                                    gt.data = gt.data,
-                                    model = model,
-                                    s = s)
-
-    if(s %% 50 == 0) {
-      cat("SNP:", s, "/", gt.data$Ns, ',', sep = '')
-    }
-  }
-
-
-
+  ppc.out <- lapply(X = 1:gt.data$Ns,
+                    FUN = getPpcPosterior,
+                    ext = ext,
+                    gt.data = gt.data,
+                    model = model)
 
   # compute statistics
   ys <- array(data = NA, dim = c(gt.data$Ntd+gt.data$Ntq,
