@@ -74,17 +74,20 @@ model {
 generated quantities {
   matrix [N, Ns] log_lik2 [Ntq+Ntd];
   matrix [N, Ntq+Ntd] log_lik;
+  matrix [N, Ns] Yhat [Ntq+Ntd];
 
   for(i in 1:N) {
     for(s in 1:Ns) {
       if(Ntq > 0) {
         for(t in 1:Ntq) {
           log_lik2[t][i,s] = normal_lpdf(Yq[i,t] | alpha[t]+X[i][s]*beta[t][s,K[i]], sigma[t]);
+          Yhat[t][i,s] = normal_rng(alpha[t]+X[i][s]*beta[t][s,K[i]], sigma[t]);
         }
       }
       if(Ntd > 0) {
         for(d in 1:Ntd) {
           log_lik2[d+Ntq][i,s] = bernoulli_logit_lpmf(Yd[i,d] | alpha[d+Ntq]+X[i][s]*beta[d+Ntq][s,K[i]]);
+          Yhat[Ntq+d][i,s] = bernoulli_rng(inv_logit(alpha[d+Ntq]+X[i][s]*beta[d+Ntq][s,K[i]]));
         }
       }
     }

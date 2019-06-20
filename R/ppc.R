@@ -80,8 +80,8 @@ getPpcHorizontal <- function(ext, gt.data,
         m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
       }
       if(trait.type == "D") {
-        m <- 1/(1 + exp(-(x[1]+x[2]*y)))
-        # m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
+        # m <- 1/(1 + exp(-(x[1]+x[2]*y)))
+        m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y))))
       }
     }
 
@@ -91,15 +91,15 @@ getPpcHorizontal <- function(ext, gt.data,
           m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
         }
         if(trait.type == "D") {
-          m <- 1/(1 + exp(-(x[1]+x[2]*y)))
-          # m <- mean(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
+          # m <- 1/(1 + exp(-(x[1]+x[2]*y)))
+          m <- mean(rbinom(n = 1, size = 1, prob = 1/(1 + exp(-(x[1]+x[2]*y)))))
         }
       }
       if(model %in% c("M1", "M1c")) {
         m <- rnorm(n = 1, mean = x[1]+x[2]*y, sd = x[3])
         if(trait.type == "D") {
-          m <- 1/(1 + exp(-m))
-          # m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-m)))
+          # m <- 1/(1 + exp(-m))
+          m <- rbinom(n = 1, size = 1, prob = 1/(1 + exp(-m)))
         }
       }
     }

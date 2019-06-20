@@ -6,32 +6,35 @@ source("R/modelcomparison.R")
 source("R/ppc.R")
 
 require(rstan)
+rstan_options(auto_write = TRUE)
 require(loo)
 require(parallel)
 require(foreach)
 require(doParallel)
 require(Biostrings)
 
-data.list <- get(load(file = "~/MiceGwas/output/posterior/tnf/data.list.RData"))
-genotype <- data.list$X[, 1:200]
+data.list <- get(load(file = "~/MiceGwas/output/posterior/vsv/data.list.RData"))
+genotype <- data.list$X[, 1:300]
 genotype[1, 1] <- as.character(genotype[1, 1])
 traits <- cbind(data.list$Yq, data.list$Yd)
 strains <- data.list$K
 
 mc <- runModelComparison(genotype = genotype,
                          traits = traits,
-                         # trait.type = c("Q", "Q"),
-                         trait.type = c("Q", "Q", "Q", "D"),
+                         trait.type = c("Q", "Q"),
+                         # trait.type = c("Q", "Q", "Q", "D"),
                          strains = strains,
                          models = c("M0", "M0c",
                                     "M1", "M1c"),
                          mcmc.chains = 4,
                          mcmc.steps = 1500,
-                         mcmc.warmup = 750,
+                         mcmc.warmup = 500,
                          cores = 4,
                          hdi.level = 0.95,
                          adapt_delta = 0.95,
                          max_treedepth = 10)
-save(mc, file = "dev.tests/tnf.200.RData")
+save(mc, file = "dev.tests/vsv.300.RData")
 cat("DONE \n")
+
+
 

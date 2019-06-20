@@ -43,6 +43,7 @@
 /home/nfs_data/simo/MLgwas/out.manuscript/loo.300.txt="27D3FF39"
 /home/nfs_data/simo/MLgwas/src/stan_files/M0.stan="4CEB2571"
 /home/nfs_data/simo/MLgwas/src/stan_files/M0_loglik.stan="4EA85E8A"
+/home/nfs_data/simo/MLgwas/src/stan_files/M0_yhat.stan="A1166EC7"
 /home/nfs_data/simo/MLgwas/src/stan_files/M0c.stan="52F77C1C"
 /home/nfs_data/simo/MLgwas/src/stan_files/M0c_loglik.stan="90B1A240"
 /home/nfs_data/simo/MLgwas/src/stan_files/M1.stan="97961C2"

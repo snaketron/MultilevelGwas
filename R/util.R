@@ -154,7 +154,8 @@ getStanData <- function(genotype,
       rm(temp.Yd)
     }
 
-
+    # set X to numeric
+    class(X) <- "numeric"
 
     K <- as.numeric(as.factor(strains))
     s <- list(X = X,
@@ -453,17 +454,12 @@ getStanModelPars <- function(model.name,
     if(model.name == "M0") {
       pars <- c("alpha", "beta", "sigma",
                 "mu_beta", "log_lik",
-                "log_lik2", "nu", "nu_help")
-    }
-    if(model.name == "mM0") {
-      pars <- c("alpha", "beta", "sigma",
-                "mu_beta", "log_lik",
-                "log_lik2", "nu", "nu_help")
+                "log_lik2", "Yhat", "nu", "nu_help")
     }
     if(model.name == "M0c") {
       pars <- c("alpha", "beta", "sigma",
                 "mu_beta", "log_lik", "log_lik2",
-                "rho", "nu", "nu_help")
+                "Yhat", "rho", "nu", "nu_help")
     }
 
     # M1
@@ -471,14 +467,15 @@ getStanModelPars <- function(model.name,
       pars <- c("alpha", "beta", "mu_beta",
                 "grand_mu_beta", "sigma",
                 "sigma_beta", "log_lik",
-                "log_lik2", "nu", "nu_help")
+                "log_lik2", "Yhat", "nu",
+                "nu_help")
     }
     if(model.name == "M1c") {
       pars <- c("alpha", "beta", "mu_beta",
                 "grand_mu_beta", "sigma",
                 "sigma_beta", "log_lik",
-                "log_lik2", "rho", "nu",
-                "nu_help")
+                "log_lik2", "Yhat", "rho",
+                "nu", "nu_help")
     }
   }
   else {

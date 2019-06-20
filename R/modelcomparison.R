@@ -70,16 +70,18 @@ runModelComparison <- function(genotype,
 
   # compute LOOIC
   cat("2) Computing LOOIC ... \n")
-  ic <- getIC(ps = ps)
+  ic <- NA
+  # ic <- getIC(ps = ps)
 
 
 
   # compute PPC
   cat("3) Posterior prediction ... \n")
-  ppc <- getPpc(ps = ps,
-                gt.data = gt.data,
-                models = models,
-                hdi.level = hdi.level)
+  ppc <- NA
+  # ppc <- getPpc(ps = ps,
+  #               gt.data = gt.data,
+  #               models = models,
+  #               hdi.level = hdi.level)
   # ppc <- getPpcMc(ps = ps,
   #                 gt.data = gt.data,
   #                 models = models,
