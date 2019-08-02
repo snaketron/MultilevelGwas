@@ -157,7 +157,11 @@ getStanData <- function(genotype,
     # set X to numeric
     class(X) <- "numeric"
 
+
     K <- as.numeric(as.factor(strains))
+    Xk <- X[which(duplicated(K) == FALSE), ]
+
+
     s <- list(X = X,
               Y = cbind(Yq, Yd),
               K = K,
@@ -169,6 +173,7 @@ getStanData <- function(genotype,
               Ntq = ncol(Yq),
               Ntd = ncol(Yd),
               xmap = xmap,
+              Xk = Xk,
               strains = strains,
               genotype = f.data$genotype,
               trait.type = f.data$trait.type)
@@ -308,26 +313,32 @@ getStanModelPars <- function(model.name,
   if(comparison) {
     # M0
     if(model.name == "M0") {
-      pars <- c("alpha", "beta", "sigma", "mu_beta",
+      # pars <- c("alpha", "beta", "sigma", "mu_beta",
+      #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
+      #           "nu", "nu_help")
+      pars <- c("alpha", "sigma", "mu_beta",
                 "log_lik", "log_lik2", "Yhat", "Yhat_snp",
                 "nu", "nu_help")
     }
     if(model.name == "M0c") {
-      pars <- c("alpha", "beta", "sigma", "mu_beta",
-                "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-                "rho", "nu", "nu_help")
+      # pars <- c("alpha", "beta", "sigma", "mu_beta",
+      #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
+      #           "rho", "nu", "nu_help")
+      pars <- c("log_lik", "log_lik2", "Yhat", "Yhat_snp")
     }
 
     # M1
     if(model.name == "M1") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-                "Yhat_strain", "nu", "nu_help")
+      # pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
+      #           "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
+      #           "Yhat_strain", "nu", "nu_help")
+      pars <- c("log_lik", "log_lik2", "Yhat", "Yhat_snp", "Yhat_strain")
     }
     if(model.name == "M1c") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-                "Yhat_strain", "rho", "nu", "nu_help")
+      # pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
+      #           "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
+      #           "Yhat_strain", "rho", "nu", "nu_help")
+      pars <- c("log_lik", "log_lik2", "Yhat", "Yhat_snp", "Yhat_strain")
     }
   }
   else {

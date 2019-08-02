@@ -22,13 +22,15 @@ runInference <- function(gt.data,
                     Yd = gt.data$Yd,
                     X = gt.data$X,
                     M = gt.data$Ms,
-                    K = gt.data$K)
+                    K = gt.data$K,
+                    Xk = gt.data$Xk)
 
 
 
   # get appropriate parameters to monitor
   pars <- getStanModelPars(model.name = stan.model@model_name,
                            comparison = comparison)
+
 
   # run
   p <- rstan::sampling(object = stan.model,

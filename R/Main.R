@@ -1,5 +1,6 @@
 
 
+
 # Description:
 # Main analysis
 runGwas <- function(genotype,
@@ -54,25 +55,10 @@ runGwas <- function(genotype,
                     max.treedepth = max.treedepth,
                     comparison = FALSE)
 
-
-  # cat("======== Collecting Results ======== \n")
-  # scores <- getScores(p = p, s = s, r = r,
-  #                     model = model,
-  #                     gt.data = gt.data,
-  #                     hdi.level = hdi.level)
-  #
-  #
-  #
-  # cat("======== Posterior Predictive Checks ======== \n")
-  # ppc <- getPpc(ps = list(p = p),
-  #               gt.data = gt.data,
-  #               models = model,
-  #               hdi.level = hdi.level)
-
-
-
   return (p)
 }
+
+
 
 
 
@@ -150,4 +136,5 @@ runComparison <- function(genotype,
 
   return (out)
 }
+
 

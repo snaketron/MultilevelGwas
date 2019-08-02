@@ -54,7 +54,7 @@ generated quantities {
   matrix [N, Ns] log_lik2 [Ntq+Ntd];
   matrix [N, Ntq+Ntd] log_lik;
   matrix [N, Ns] Yhat [Ntq+Ntd];
-  matrix [Ns, 2] Yhat_snp [Ntq+Ntd];
+  matrix [2, Ns] Yhat_snp [Ntq+Ntd];
 
   for(i in 1:N) {
     for(s in 1:Ns) {
@@ -81,14 +81,14 @@ generated quantities {
   for(s in 1:Ns) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yhat_snp[t][s, 1] = alpha[t]+(+1)*beta[t][s];
-        Yhat_snp[t][s, 2] = alpha[t]+(-1)*beta[t][s];
+        Yhat_snp[t][1, s] = alpha[t]+(+1)*beta[t][s];
+        Yhat_snp[t][2, s] = alpha[t]+(-1)*beta[t][s];
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yhat_snp[Ntq+d][s, 1] = inv_logit(alpha[Ntq+d]+(+1)*beta[Ntq+d][s]);
-        Yhat_snp[Ntq+d][s, 2] = inv_logit(alpha[Ntq+d]+(-1)*beta[Ntq+d][s]);
+        Yhat_snp[Ntq+d][1, s] = inv_logit(alpha[Ntq+d]+(+1)*beta[Ntq+d][s]);
+        Yhat_snp[Ntq+d][2, s] = inv_logit(alpha[Ntq+d]+(-1)*beta[Ntq+d][s]);
       }
     }
   }

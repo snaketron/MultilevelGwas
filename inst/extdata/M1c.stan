@@ -78,8 +78,8 @@ generated quantities {
   matrix [N, Ntq+Ntd] log_lik;
   corr_matrix[(Ntq+Ntd)] rho;
   matrix [N, Ns] Yhat [Ntq+Ntd];
-  matrix [Ns, Nk] Yhat_strain [Ntq+Ntd];
-  matrix [Ns, 2] Yhat_snp [Ntq+Ntd];
+  matrix [Nk, Ns] Yhat_strain [Ntq+Ntd];
+  matrix [2, Ns] Yhat_snp [Ntq+Ntd];
   rho = multiply_lower_tri_self_transpose(L_rho);
 
   for(i in 1:N) {
@@ -107,23 +107,23 @@ generated quantities {
   for(s in 1:Ns) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yhat_snp[t][s, 1] = alpha[t]+(+1)*mu_beta[t, s];
-        Yhat_snp[t][s, 2] = alpha[t]+(-1)*mu_beta[t, s];
+        Yhat_snp[t][1, s] = alpha[t]+(+1)*mu_beta[t, s];
+        Yhat_snp[t][2, s] = alpha[t]+(-1)*mu_beta[t, s];
 
         // make strain-level predictions
         for(k in 1:Nk) {
-           Yhat_strain[t][s, k] = alpha[t]+Xk[s, k]*beta[t][s, k];
+           Yhat_strain[t][k, s] = alpha[t]+Xk[k, s]*beta[t][s, k];
         }
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yhat_snp[Ntq+d][s, 1] = inv_logit(alpha[Ntq+d]+(+1)*mu_beta[Ntq+d, s]);
-        Yhat_snp[Ntq+d][s, 2] = inv_logit(alpha[Ntq+d]+(-1)*mu_beta[Ntq+d, s]);
+        Yhat_snp[Ntq+d][1, s] = inv_logit(alpha[Ntq+d]+(+1)*mu_beta[Ntq+d, s]);
+        Yhat_snp[Ntq+d][2, s] = inv_logit(alpha[Ntq+d]+(-1)*mu_beta[Ntq+d, s]);
 
         // make strain-level predictions
         for(k in 1:Nk) {
-           Yhat_strain[Ntq+d][s, k] = inv_logit(alpha[Ntq+d]+Xk[s, k]*beta[Ntq+d][s, k]);
+           Yhat_strain[Ntq+d][k, s] = inv_logit(alpha[Ntq+d]+Xk[k, s]*beta[Ntq+d][s, k]);
         }
       }
     }
