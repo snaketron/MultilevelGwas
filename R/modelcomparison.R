@@ -9,13 +9,8 @@ runModelComparison <- function(genotype,
                                mcmc.chains = 2,
                                mcmc.steps = 1500,
                                mcmc.warmup = 500,
-                               cores = 1,
-                               hdi.level = 0.95,
-                               ...) {
-
-
-  # check optional (dot) inputs
-  dot.param <- checkDotParModelComparison(...)
+                               mcmc.cores = 1,
+                               hdi.level = 0.95) {
 
 
   # in case the user provides duplicate models
@@ -31,7 +26,7 @@ runModelComparison <- function(genotype,
                             mcmc.chains = mcmc.chains,
                             mcmc.steps = mcmc.steps,
                             mcmc.warmup = mcmc.warmup,
-                            cores = cores,
+                            mcmc.cores = mcmc.cores,
                             hdi.level = hdi.level)
 
 

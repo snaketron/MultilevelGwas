@@ -1,0 +1,153 @@
+
+
+# Description:
+# Main analysis
+runGwas <- function(genotype,
+                    traits,
+                    trait.type,
+                    strains,
+                    model,
+                    mcmc.warmup = 500,
+                    mcmc.steps = 1500,
+                    mcmc.chains = 4,
+                    mcmc.cores = 4,
+                    hdi.level = 0.95,
+                    adapt.delta = 0.95,
+                    max.treedepth = 10) {
+
+
+  # check inputs
+  checkInput(genotype = genotype,
+             traits = traits,
+             trait.type = trait.type,
+             strains = strains,
+             model = model,
+             mcmc.chains = mcmc.chains,
+             mcmc.steps = mcmc.steps,
+             mcmc.warmup = mcmc.warmup,
+             mcmc.cores = mcmc.cores,
+             hdi.level = hdi.level,
+             adapt.delta = adapt.delta,
+             max.treedepth = max.treedepth)
+
+
+  # convert input data to genetic-trait data (for stan)
+  gt.data <- getStanData(genotype = genotype,
+                         traits = traits,
+                         trait.type = trait.type,
+                         strains = strains)
+
+
+  # compile stan model
+  cat("Compiling model ... \n")
+  stan.model <- getStanModel(model.name = model)
+
+
+  cat("Running inference ... \n")
+  p <- runInference(gt.data = gt.data,
+                    mcmc.chains = mcmc.chains,
+                    mcmc.steps = mcmc.steps,
+                    mcmc.warmup = mcmc.warmup,
+                    mcmc.cores = mcmc.cores,
+                    stan.model = stan.model,
+                    adapt.delta = adapt.delta,
+                    max.treedepth = max.treedepth,
+                    comparison = FALSE)
+
+
+  # cat("======== Collecting Results ======== \n")
+  # scores <- getScores(p = p, s = s, r = r,
+  #                     model = model,
+  #                     gt.data = gt.data,
+  #                     hdi.level = hdi.level)
+  #
+  #
+  #
+  # cat("======== Posterior Predictive Checks ======== \n")
+  # ppc <- getPpc(ps = list(p = p),
+  #               gt.data = gt.data,
+  #               models = model,
+  #               hdi.level = hdi.level)
+
+
+
+  return (p)
+}
+
+
+
+# Description:
+# Comparison analysis
+runComparison <- function(genotype,
+                          traits,
+                          trait.type,
+                          strains,
+                          models,
+                          mcmc.warmup = 500,
+                          mcmc.steps = 1500,
+                          mcmc.chains = 4,
+                          mcmc.cores = 4,
+                          hdi.level = 0.95,
+                          adapt.delta = 0.95,
+                          max.treedepth = 10) {
+
+  # check inputs
+  checkInput(genotype = genotype,
+             traits = traits,
+             trait.type = trait.type,
+             strains = strains,
+             model = "M0",
+             mcmc.chains = mcmc.chains,
+             mcmc.steps = mcmc.steps,
+             mcmc.warmup = mcmc.warmup,
+             mcmc.cores = mcmc.cores,
+             hdi.level = hdi.level,
+             adapt.delta = adapt.delta,
+             max.treedepth = max.treedepth)
+
+
+  # check models input
+  models <- unique(models)
+  if(length(models) <= 1) {
+    stop("at least two models must be specified.")
+  }
+  if(all(models %in% c("M0", "M0c", "M1", "M1c")) == FALSE) {
+    stop("allowed models are 'M0', 'M0c', 'M1' and 'M1c'.")
+  }
+
+
+  # convert input data to genetic-trait data (for stan)
+  gt.data <- getStanData(genotype = genotype,
+                         traits = traits,
+                         trait.type = trait.type,
+                         strains = strains)
+
+
+  # results
+  out <- vector(mode = "list", length = length(models))
+  names(out) <- models
+
+
+  # loop through models
+  for(model in models) {
+
+    # compile stan model
+    cat(paste("Compiling model (", model, ")", "..., \n", sep = ''))
+    stan.model <- getStanModel(model.name = model)
+
+    # inference
+    cat(paste("Running inference (", model, ")", "..., \n", sep = ''))
+    out[[model]] <- runInference(gt.data = gt.data,
+                                 mcmc.chains = mcmc.chains,
+                                 mcmc.steps = mcmc.steps,
+                                 mcmc.warmup = mcmc.warmup,
+                                 mcmc.cores = mcmc.cores,
+                                 stan.model = stan.model,
+                                 adapt.delta = adapt.delta,
+                                 max.treedepth = max.treedepth,
+                                 comparison = TRUE)
+  }
+
+  return (out)
+}
+

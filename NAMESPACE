@@ -1,24 +1,14 @@
-export(
-  runMLgwas,
-)
+export(runGwas)
+export(runComparison)
 
-# Import packages listed as Imports or Depends
-import(
-  Rcpp,
-  methods,
-  stats,
-  graphics,
-  e1071,
-  Biostrings,
-  rstan,
-  rstantools,
-  ranger,
-  parallel,
-  foreach,
-  doParallel
-)
-importFrom("graphics", "hist")
-importFrom("stats", "bw.nrd0")
-importFrom("rPref", "high")
-importFrom("rPref", "psel")
-useDynLib(MLgwas, .registration = TRUE)
+import(Rcpp)
+import(methods)
+importFrom(rstan,sampling)
+importFrom(rstan,summary)
+importFrom(rstan,extract)
+importFrom(rstan,stan_model)
+importFrom(rstan,rstan_options)
+importFrom(graphics, hist)
+importFrom(stats, bw.nrd0)
+importFrom(rPref, high)
+importFrom(rPref, psel)

@@ -1,22 +1,38 @@
-Package: MLgwas
-Title: Tool for multi-level genome wide association studies of multiple traits
-Version: 0.0.0.9000
+Package: MultilevelGwas
+Title: Multi-level genome wide association studies of multiple traits
+Version: 0.99.0
 Authors@R: 
     person(given = "Simo",
            family = "Kitanovski",
            role = c("aut", "cre"),
            email = "simo.kitanovski@uni-due.de")
 Description: Genome wide association studies of multiple traits with Bayesian 
-    multi-level models and statistical learning techniques.
-License: GPL (>=3)
+    multi-level models.
+License: GPL (>=3) + file LICENSE
 Depends: R (>= 3.4.0), Rcpp (>= 1.0.1), methods, stats, graphics
-Imports: rstan (>= 2.18.2), rstantools (>= 1.5.1), ranger, parallel, 
-    foreach, doParallel, e1071, Biostrings, rPref
-LinkingTo: 
-    BH (>= 1.69.0-1), Rcpp (>= 1.0.1), RcppEigen (>= 0.3.3.5.0),
-    rstan (>= 2.18.2), StanHeaders (>= 2.18.1)
+Depends: 
+    methods,
+    R (>= 3.6.0),   
+    Rcpp (>= 0.12.0),
+    StanHeaders (> 2.18.1)
+Imports: 
+    rstan (>= 2.19.2),
+    reshape2 (>= 1.4.3),
+    rPref
+Suggests: 
+    BiocStyle,
+    knitr,
+    rmarkdown,
+    testthat (>= 2.1.0),
+    ggplot2,
+    ggforce,
+    gridExtra,
+    ggrepel
 Encoding: UTF-8
 LazyData: true
-NeedsCompilation: yes
+NeedsCompilation: no
 SystemRequirements: GNU make
+biocViews: GenomeWideAssociation, Regression, Genetics, Bayesian,
+    FeatureExtraction
+BugReports: https://github.com/snaketron/MultilevelGwas/issues
 RoxygenNote: 6.1.1
