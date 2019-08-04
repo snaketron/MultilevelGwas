@@ -26,11 +26,14 @@ runInference <- function(gt.data,
                     Xk = gt.data$Xk)
 
 
-
   # get appropriate parameters to monitor
   pars <- getStanModelPars(model.name = stan.model@model_name,
                            comparison = comparison)
 
+
+  # sample file
+  sample.file <- paste(round(x = runif(n = 1, min = 0, max = 10^8), digits = 0),
+                    "_sampling_", stan.model@model_name, sep = '')
 
   # run
   p <- rstan::sampling(object = stan.model,
@@ -43,7 +46,8 @@ runInference <- function(gt.data,
                                       max_treedepth = max.treedepth),
                        pars = pars,
                        include = TRUE,
+                       sample_file = sample.file,
                        refresh = 250)
-  # sample_file = sample.file,
+
   return (p)
 }

@@ -316,15 +316,16 @@ getStanModelPars <- function(model.name,
       # pars <- c("alpha", "beta", "sigma", "mu_beta",
       #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
       #           "nu", "nu_help")
-      pars <- c("alpha", "sigma", "mu_beta",
-                "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-                "nu", "nu_help")
+      # pars <- c("alpha", "sigma", "mu_beta",
+      #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
+      #           "nu", "nu_help")
+      pars <- c("alpha", "sigma", "beta", "nu", "nu_help")
     }
     if(model.name == "M0c") {
       # pars <- c("alpha", "beta", "sigma", "mu_beta",
       #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
       #           "rho", "nu", "nu_help")
-      pars <- c("log_lik", "log_lik2", "Yhat", "Yhat_snp")
+      pars <- c("alpha", "beta", "sigma", "beta", "rho", "nu", "nu_help")
     }
 
     # M1
@@ -332,13 +333,15 @@ getStanModelPars <- function(model.name,
       # pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
       #           "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
       #           "Yhat_strain", "nu", "nu_help")
-      pars <- c("log_lik", "log_lik2", "Yhat", "Yhat_snp", "Yhat_strain")
+      pars <- c("alpha", "mu_beta", "grand_mu_beta",
+                "sigma", "sigma_beta", "nu", "nu_help")
     }
     if(model.name == "M1c") {
       # pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
       #           "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
       #           "Yhat_strain", "rho", "nu", "nu_help")
-      pars <- c("log_lik", "log_lik2", "Yhat", "Yhat_snp", "Yhat_strain")
+      pars <- c("alpha", "mu_beta", "grand_mu_beta",
+                "sigma", "sigma_beta", "rho", "nu", "nu_help") #beta ignored
     }
   }
   else {
@@ -516,30 +519,13 @@ convertMsaToGenotype <- function(genotype) {
 # Function:
 # Combine data from Bayesian inference and statistical learning
 # p = posterior
-# s = statistical learning
-# r = pareto ranks
-getScores <- function(p, s, r, model, gt.data, hdi.level) {
+getScores <- function(glm, model, hdi.level, gt.data) {
 
-  # s.summary
-  s.summary <- c()
-  for(t in 1:length(s)) {
-    s.summary <- rbind(s.summary, s[[t]]$summary)
-  }
-  s <- s.summary
-  rm(s.summary)
+  pars <- ifelse(test = model %in% c("M0", "M0c"),
+                 yes = "beta", no = "mu_beta")
 
-
-  # b.summary
-  probs <- c(0.5, (1-hdi.level)/2, 1-(1-hdi.level)/2)
-
-  if(model == "M0" | model == "M0c") {
-    pars <- c("beta")
-  }
-  if(model == "M1" | model == "M1c") {
-    pars <- c("mu_beta")
-  }
-
-  d <- summary(p, probs = probs, pars = pars)$summary
+  d <- summary(glm, probs = c(0.5, (1-hdi.level)/2, 1-(1-hdi.level)/2),
+               pars = pars)$summary
   d <- data.frame(d)
   d$par <- rownames(d)
   d$par <- gsub(pattern = "mu_beta|beta|\\[|\\]",
@@ -556,12 +542,57 @@ getScores <- function(p, s, r, model, gt.data, hdi.level) {
 
   xmap <- gt.data$xmap
   scores <- merge(x = xmap, y = d, by = "site")
-  scores <- merge(x = scores, y = s, by = c("trait", "site"))
-  scores <- merge(x = scores, y = r, by = c("trait", "site"))
-  scores <- scores[order(scores$trait, scores$site,
-                         decreasing = FALSE), ]
+  scores <- scores[order(scores$trait, scores$site, decreasing = FALSE), ]
+
+  # pmax
+  pmax <- getPmax(glm)
+  scores <- merge(x = scores, y = pmax, by = c("site", "trait"))
 
   return (scores)
+}
+
+
+
+getPmax <- function(glm) {
+  pmax <- c()
+
+  if(glm@model_name %in% c("M0", "M0c")) {
+    e <- rstan::extract(object = glm, pars = c("beta"))
+    e.dim <- dim(e$beta)
+    Ns <- e.dim[3]
+    Nt <- e.dim[2]
+    Np <- e.dim[1]
+
+    for(t in 1:Nt) {
+      for(s in 1:Ns) {
+        row <- data.frame(trait = t, site = s,
+                          pmax = max(sum(e$beta[,t,s] > 0)/Np,
+                                     sum(e$beta[,t,s] < 0)/Np),
+                          stringsAsFactors = FALSE)
+        pmax <- rbind(pmax, row)
+      }
+    }
+    return (pmax)
+  }
+
+  if(glm@model_name %in% c("M1", "M1c")) {
+    e <- rstan::extract(object = glm, pars = c("mu_beta"))
+    e.dim <- dim(e$mu_beta)
+    Ns <- e.dim[3]
+    Nt <- e.dim[2]
+    Np <- e.dim[1]
+
+    for(t in 1:Nt) {
+      for(s in 1:Ns) {
+        row <- data.frame(trait = t, site = s,
+                          pmax = max(sum(e$mu_beta[,t,s] > 0)/Np,
+                                     sum(e$mu_beta[,t,s] < 0)/Np),
+                          stringsAsFactors = FALSE)
+        pmax <- rbind(pmax, row)
+      }
+    }
+    return (pmax)
+  }
 }
 
 
@@ -582,5 +613,86 @@ getHdi <- function(vec, hdi.level) {
   return(HDIlim)
 }
 
+
+
+
+getOrderedPars <- function(model) {
+
+  if(model == "M0") {
+    par <- c("alpha", "sigma", "mu_beta", "nu", "nu_help", "z", "beta",
+             "log_lik2", "log_lik", "Yhat", "Yhat_snp")
+  }
+
+  if(model == "M0c") {
+    par <- c("alpha", "sigma", "mu_beta", "nu", "nu_help", "z", "L_rho",
+             "beta", "log_lik2", "log_lik", "rho", "Yhat", "Yhat_snp")
+  }
+
+  if(model == "M1") {
+    par <- c("alpha", "grand_mu_beta", "sigma", "sigma_beta", "nu", "nu_help",
+             "z", "grand_z", "beta", "mu_beta", "log_lik2", "log_lik", "Yhat",
+             "Yhat_strain", "Yhat_snp")
+  }
+
+  if(model == "M1c") {
+    par <- c("alpha", "grand_mu_beta", "sigma", "sigma_beta", "nu", "nu_help",
+             "z", "grand_z", "L_rho", "beta", "mu_beta", "log_lik2", "log_lik",
+             "rho", "Yhat", "Yhat_strain", "Yhat_snp")
+  }
+
+}
+
+
+parseSamplingFile(files, par) {
+  for(f in csv.files) {
+    if(file.exists(f) == FALSE) {
+      stop(paste("File ", f, " does not exist \n", sep = ''))
+    }
+  }
+}
+
+getPpcData <- function(files) {
+
+  createCustomAwk <- function(is) {
+    str <- paste('{print ', paste(paste("$", is, sep = ''),
+                                  collapse = ','), "}", sep = '')
+    return (str)
+  }
+
+  for(f in files) {
+    if(file.exists(f) == FALSE) {
+      stop(paste("File ", f, " does not exist \n", sep = ''))
+    }
+
+    lines <- readLines(con = f, n = 30)
+    lines <- unlist(strsplit(x = lines, split = '\\,'))
+    i.yhat <- which(regexpr(pattern = "Yhat", text = lines) != -1)
+    i.yhat.snp <- which(regexpr(pattern = "Yhat_snp", text = lines) != -1)
+
+    awk.line <- paste('awk -F "\"*,\"*" \'NR > 1000 {print $140}\' 2025076_sampling_M0c_1.csv')
+    cols <- readLines(con = pipe("gawk -F , -f awk2.awk 2025076_sampling_M0c_1.csv"))
+    cols <- unlist(strsplit(x = cols, split = ','))
+    is <- which(regexpr(pattern = "Yhat_snp", text = cols, ignore.case = TRUE) != -1)
+
+    awk <- createCustomAwk(is)
+    writeLines(text = awk, con = "awk_temp.awk")
+
+    awk.path <- paste("gawk -F , -f awk_temp.awk", f, "> temp.csv", sep = ' ')
+    d <- readLines(con = pipe(awk.path))
+    d <- readLines(con = pipe("gawk -F , '(NR > 25)' temp.csv > temp2.csv"))
+
+    # here take only samples (-warmup)
+    d <- read.table(file = "temp2.csv", header = TRUE, as.is = TRUE, sep = ' ')
+
+    # do some cleanup before next file
+
+
+    # finally read data and summarize
+
+  }
+
+
+  read.table(pipe("/Rtools/bin/gawk -f cut.awk bigdata.dat"))
+}
 
 

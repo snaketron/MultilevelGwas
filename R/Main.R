@@ -45,17 +45,22 @@ runGwas <- function(genotype,
 
 
   cat("Running inference ... \n")
-  p <- runInference(gt.data = gt.data,
-                    mcmc.chains = mcmc.chains,
-                    mcmc.steps = mcmc.steps,
-                    mcmc.warmup = mcmc.warmup,
-                    mcmc.cores = mcmc.cores,
-                    stan.model = stan.model,
-                    adapt.delta = adapt.delta,
-                    max.treedepth = max.treedepth,
-                    comparison = FALSE)
+  glm <- runInference(gt.data = gt.data,
+                      mcmc.chains = mcmc.chains,
+                      mcmc.steps = mcmc.steps,
+                      mcmc.warmup = mcmc.warmup,
+                      mcmc.cores = mcmc.cores,
+                      stan.model = stan.model,
+                      adapt.delta = adapt.delta,
+                      max.treedepth = max.treedepth,
+                      comparison = FALSE)
 
-  return (p)
+  cat("Compute scores ... \n")
+  scores <- getScores(glm = glm, model = model,
+                      hdi.level = hdi.level,
+                      gt.data = gt.data)
+
+  return (list(glm = glm, scores = scores))
 }
 
 
@@ -108,11 +113,13 @@ runComparison <- function(genotype,
                          trait.type = trait.type,
                          strains = strains)
 
-
   # results
   out <- vector(mode = "list", length = length(models))
   names(out) <- models
 
+  # scores
+  scores <- vector(mode = "list", length = length(models))
+  names(scores) <- models
 
   # loop through models
   for(model in models) {
@@ -132,9 +139,17 @@ runComparison <- function(genotype,
                                  adapt.delta = adapt.delta,
                                  max.treedepth = max.treedepth,
                                  comparison = TRUE)
+
+    cat("Compute scores ... \n")
+    cat(paste("Computing scores (", model, ")", "..., \n", sep = ''))
+    scores[[model]] <- getScores(glm = out[[model]],
+                                 model = model,
+                                 hdi.level = hdi.level,
+                                 gt.data = gt.data)
+
   }
 
-  return (out)
+  return (list(out = out, scores = scores))
 }
 
 
