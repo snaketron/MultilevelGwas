@@ -18,10 +18,10 @@ parameters {
 }
 
 transformed parameters {
-  vector [Ns] bet_snp [Ntq+Ntd];
+  vector [Ns] beta_snp [Ntq+Ntd];
 
   for(t in 1:(Ntq+Ntd)) {
-    bet_snp[t] = beta_trait[t] + sqrt(nu_help[t]/nu[t]) * z[t];
+    beta_snp[t] = beta_trait[t] + sqrt(nu_help[t]/nu[t]) * z[t];
   }
 }
 
@@ -29,12 +29,12 @@ model {
   for(i in 1:N) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yq[i,t] ~ normal(alpha_trait[t] + X[i] .* bet_snp[t], sigma[t]);
+        Yq[i,t] ~ normal(alpha_trait[t] + X[i] .* beta_snp[t], sigma[t]);
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yd[i,d] ~ bernoulli_logit(alpha_trait[d+Ntq] + X[i] .* bet_snp[d+Ntq]);
+        Yd[i,d] ~ bernoulli_logit(alpha_trait[d+Ntq] + X[i] .* beta_snp[d+Ntq]);
       }
     }
   }
@@ -60,14 +60,14 @@ generated quantities {
     for(s in 1:Ns) {
       if(Ntq > 0) {
         for(t in 1:Ntq) {
-          log_lik_2[t][i,s] = normal_lpdf(Yq[i,t] | alpha_trait[t]+X[i][s]*bet_snp[t][s], sigma[t]);
-          Yhat_individual[t][i,s] = normal_rng(alpha_trait[t]+X[i][s]*bet_snp[t][s], sigma[t]);
+          log_lik_2[t][i,s] = normal_lpdf(Yq[i,t] | alpha_trait[t]+X[i][s]*beta_snp[t][s], sigma[t]);
+          Yhat_individual[t][i,s] = normal_rng(alpha_trait[t]+X[i][s]*beta_snp[t][s], sigma[t]);
         }
       }
       if(Ntd > 0) {
         for(d in 1:Ntd) {
-          log_lik_2[Ntq+d][i,s] = bernoulli_logit_lpmf(Yd[i, d] | alpha_trait[Ntq+d]+X[i][s]*bet_snp[Ntq+d][s]);
-          Yhat_individual[Ntq+d][i,s] = bernoulli_rng(inv_logit(alpha_trait[Ntq+d]+X[i][s]*bet_snp[Ntq+d][s]));
+          log_lik_2[Ntq+d][i,s] = bernoulli_logit_lpmf(Yd[i, d] | alpha_trait[Ntq+d]+X[i][s]*beta_snp[Ntq+d][s]);
+          Yhat_individual[Ntq+d][i,s] = bernoulli_rng(inv_logit(alpha_trait[Ntq+d]+X[i][s]*beta_snp[Ntq+d][s]));
         }
       }
     }
@@ -81,14 +81,14 @@ generated quantities {
   for(s in 1:Ns) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yhat_snp[t][1, s] = alpha_trait[t]+(+1)*bet_snp[t][s];
-        Yhat_snp[t][2, s] = alpha_trait[t]+(-1)*bet_snp[t][s];
+        Yhat_snp[t][1, s] = alpha_trait[t]+(+1)*beta_snp[t][s];
+        Yhat_snp[t][2, s] = alpha_trait[t]+(-1)*beta_snp[t][s];
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yhat_snp[Ntq+d][1, s] = inv_logit(alpha_trait[Ntq+d]+(+1)*bet_snp[Ntq+d][s]);
-        Yhat_snp[Ntq+d][2, s] = inv_logit(alpha_trait[Ntq+d]+(-1)*bet_snp[Ntq+d][s]);
+        Yhat_snp[Ntq+d][1, s] = inv_logit(alpha_trait[Ntq+d]+(+1)*beta_snp[Ntq+d][s]);
+        Yhat_snp[Ntq+d][2, s] = inv_logit(alpha_trait[Ntq+d]+(-1)*beta_snp[Ntq+d][s]);
       }
     }
   }

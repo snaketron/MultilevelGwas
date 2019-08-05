@@ -36,19 +36,19 @@ runInference <- function(gt.data,
 
 
   # run
-  p <- rstan::sampling(object = stan.model,
-                       data = data.list,
-                       iter = mcmc.steps,
-                       warmup = mcmc.warmup,
-                       chains = mcmc.chains,
-                       cores = mcmc.cores,
-                       control = list(adapt_delta = adapt.delta,
-                                      max_treedepth = max.treedepth),
-                       pars = pars,
-                       include = TRUE,
-                       sample_file = sample.file,
-                       refresh = 100,
-                       algorithm = "NUTS")
+  glm <- rstan::sampling(object = stan.model,
+                         data = data.list,
+                         iter = mcmc.steps,
+                         warmup = mcmc.warmup,
+                         chains = mcmc.chains,
+                         cores = mcmc.cores,
+                         control = list(adapt_delta = adapt.delta,
+                                        max_treedepth = max.treedepth),
+                         pars = pars,
+                         include = TRUE,
+                         sample_file = sample.file,
+                         refresh = 100,
+                         algorithm = "NUTS")
 
-  return (p)
+  return (list(glm = glm, sample.file = sample.file))
 }

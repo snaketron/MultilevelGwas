@@ -57,11 +57,27 @@ runGwas <- function(genotype,
                       comparison = FALSE)
 
   cat("Compute scores ... \n")
-  scores <- getScores(glm = glm, model = model,
+  scores <- getScores(glm = glm$glm,
+                      model = model,
                       hdi.level = hdi.level,
                       gt.data = gt.data)
 
-  return (list(glm = glm, scores = scores))
+
+  cat("Compute PPC ... \n")
+  sampling.files <- paste(paste(glm$sampling.file, "sampling", model,
+                                mcmc.chains, sep = '_'), "csv", sep = '.')
+  if(all(file.exists(sampling.files)) == FALSE) {
+    warning("Sampling files not found, PPC skipped ...")
+    ppc <- NA
+  }
+  else {
+    ppc <- getPpc(gt.data = gt.data,
+                  sampling.files = sampling.files,
+                  mcmc.warmup = mcmc.warmup,
+                  model = model)
+  }
+
+  return (list(glm = glm, scores = scores, ppc = ppc))
 }
 
 
@@ -122,6 +138,12 @@ runComparison <- function(genotype,
   scores <- vector(mode = "list", length = length(models))
   names(scores) <- models
 
+  # ppc
+  ppc <- vector(mode = "list", length = length(models))
+  names(scores) <- models
+
+
+
   # loop through models
   for(model in models) {
 
@@ -141,16 +163,29 @@ runComparison <- function(genotype,
                                  max.treedepth = max.treedepth,
                                  comparison = TRUE)
 
-    cat("Compute scores ... \n")
     cat(paste("Computing scores (", model, ")", "..., \n", sep = ''))
-    scores[[model]] <- getScores(glm = out[[model]],
+    scores[[model]] <- getScores(glm = out[[model]]$glm,
                                  model = model,
                                  hdi.level = hdi.level,
                                  gt.data = gt.data)
 
+
+    cat(paste("Computing PPC (", model, ")", "..., \n", sep = ''))
+    sampling.files <- paste(paste(out[[model]]$sampling.file, "sampling",
+                                  model, mcmc.chains, sep = '_'), "csv", sep = '.')
+    if(all(file.exists(sampling.files)) == FALSE) {
+      warning("Sampling files not found, PPC skipped ...")
+      ppc[[model]] <- NA
+    }
+    else {
+      ppc[[model]] <- getPpc(gt.data = gt.data,
+                             sampling.files = sampling.files,
+                             mcmc.warmup = mcmc.warmup,
+                             model = model)
+    }
   }
 
-  return (list(out = out, scores = scores))
+  return (list(out = out, scores = scores, ppc = ppc))
 }
 
 
