@@ -10,9 +10,9 @@ Authors@R:
 Description: Genome wide association studies of multiple traits in model 
     organisms, such as inbred mice, with Bayesian multilevel models.
 License: GPL (>=3) + file LICENSE
-Depends: R (>= 3.4.0), Rcpp (>= 1.0.1), methods, stats, graphics
 Depends: 
     methods,
+    stats,
     R (>= 3.6.0),   
     Rcpp (>= 0.12.0),
     StanHeaders (> 2.18.1)

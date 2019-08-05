@@ -1,10 +1,11 @@
-# Function:
+
+
+# Description:
 # Parse input data and format it for stan and statistical learning
 getStanData <- function(genotype,
                         traits,
                         trait.type,
                         strains) {
-
 
 
   # Description:
@@ -129,14 +130,14 @@ getStanData <- function(genotype,
     X <- do.call(cbind, lapply(X = X, FUN = getXData))
 
 
-    if(sum(trait.type == "Q") != 0) {
+    if(sum(f.data$trait.type == "Q") != 0) {
       Yq <- as.matrix(f.data$traits[, f.data$trait.type == "Q"])
     }
     else {
       Yq <- matrix(data = 0, ncol = 0, nrow = nrow(X))
     }
 
-    if(sum(trait.type == "D") != 0) {
+    if(sum(f.data$trait.type == "D") != 0) {
       Yd <- as.matrix(f.data$traits[, f.data$trait.type == "D"])
     }
     else {
@@ -158,7 +159,7 @@ getStanData <- function(genotype,
     class(X) <- "numeric"
 
 
-    K <- as.numeric(as.factor(strains))
+    K <- as.numeric(as.factor(f.data$strains))
     Xk <- X[which(duplicated(K) == FALSE), ]
 
 
@@ -169,12 +170,13 @@ getStanData <- function(genotype,
               Yd = Yd,
               N = nrow(X),
               Ns = ncol(X),
-              Nk = length(unique(strains)),
+              Nk = length(unique(f.data$strains)),
               Ntq = ncol(Yq),
               Ntd = ncol(Yd),
-              xmap = xmap,
               Xk = Xk,
-              strains = strains,
+              xmap = xmap,
+              Korg = f.data$strains,
+              strains = f.data$strains,
               genotype = f.data$genotype,
               trait.type = f.data$trait.type)
 
@@ -307,7 +309,9 @@ getStanModelDebug <- function(model.name,
 }
 
 
-
+# Description:
+# These are the most necessary parameters (for the user). The remaining are
+# anyhow exported in the sampling files.
 getStanModelPars <- function(model.name) {
 
   # M0
@@ -337,7 +341,7 @@ getStanModelPars <- function(model.name) {
 
 
 
-# Function:
+# Description:
 # Check the input arguments of the main run, stop if violated.
 checkInput <- function(genotype,
                        traits,
@@ -587,23 +591,23 @@ getHdi <- function(vec, hdi.level) {
 # files: list of file paths
 getPpcFromSampling <- function(files, mcmc.warmup, par) {
 
+
   createCustomAwk <- function(is) {
     str <- paste('{print ', paste(paste("$", is, sep = ''),
                                   collapse = ','), "}", sep = '')
     return (str)
   }
 
-
-  if(length(par != 1)) {
-    stop("par can be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
+  if(length(par) != 1) {
+    stop("par must be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
   }
 
   if(is.character(par) == FALSE) {
-    stop("par can be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
+    stop("par must be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
   }
 
   if(all(par %in% c("Yhat_individual", "Yhat_strain", "Yhat_snp")) == FALSE) {
-    stop("par can be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
+    stop("par must be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
   }
 
   data <- vector(mode = "list", length = length(files))
@@ -648,9 +652,9 @@ getPpcFromSampling <- function(files, mcmc.warmup, par) {
   y.median <- apply(X = data, MARGIN = 2, FUN = median)
   y.hdi <- apply(X = data, MARGIN = 2, FUN = getHdi, hdi.level = 0.95)
   y.hdi <- t(y.hdi)
-  y.data <- data.frame(par = names(y.mean), mean = y.mean,
-                       median = y.median, L = y.hdi[, 1],
-                       H = y.hdi[, 2], stringsAsFactors = FALSE)
+  y.data <- data.frame(par = names(y.mean), ppc.mean = y.mean,
+                       ppc.median = y.median, ppc.L = y.hdi[, 1],
+                       ppc.H = y.hdi[, 2], stringsAsFactors = FALSE)
   par.data <- strsplit(x = y.data$par, split = "\\.")
   par.data <- do.call(rbind, par.data)
 
@@ -674,15 +678,20 @@ getPpcFromSampling <- function(files, mcmc.warmup, par) {
   if(par == "Yhat_snp") {
     y.data$par.type <- par.data[, 1]
     y.data$trait <- as.numeric(par.data[, 2])
-    y.data$allele <- ifelse(test = as.numeric(par.data[, 3]) == 1,
-                            yes = 1, no = -1)
+    y.data$X <- ifelse(test = as.numeric(par.data[, 3]) == 1, yes = 1, no = -1)
     y.data$snp <- as.numeric(par.data[, 4])
   }
-
 
   y.data$par <- NULL
 
   return (y.data)
+}
+
+
+# Description:
+# Horizontal posterior predictions
+getPpc <- function() {
+
 }
 
 

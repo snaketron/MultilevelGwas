@@ -39,6 +39,7 @@ runGwas <- function(genotype,
                          strains = strains)
 
 
+
   # compile stan model
   cat("Compiling model ... \n")
   stan.model <- getStanModel(model.name = model)
