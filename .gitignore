@@ -13,3 +13,4 @@ src/stan_files/*.dll
 src/stan_files/*.hpp
 src/stan_files/*.rds
 *.RData
+*sampling_M*_*.csv

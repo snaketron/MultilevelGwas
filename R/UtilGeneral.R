@@ -308,60 +308,25 @@ getStanModelDebug <- function(model.name,
 
 
 
-getStanModelPars <- function(model.name,
-                             comparison) {
-  if(comparison) {
-    # M0
-    if(model.name == "M0") {
-      # pars <- c("alpha", "beta", "sigma", "mu_beta",
-      #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-      #           "nu", "nu_help")
-      # pars <- c("alpha", "sigma", "mu_beta",
-      #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-      #           "nu", "nu_help")
-      pars <- c("alpha", "sigma", "beta", "nu", "nu_help")
-    }
-    if(model.name == "M0c") {
-      # pars <- c("alpha", "beta", "sigma", "mu_beta",
-      #           "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-      #           "rho", "nu", "nu_help")
-      pars <- c("alpha", "beta", "sigma", "beta", "rho", "nu", "nu_help")
-    }
+getStanModelPars <- function(model.name) {
 
-    # M1
-    if(model.name == "M1") {
-      # pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-      #           "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-      #           "Yhat_strain", "nu", "nu_help")
-      pars <- c("alpha", "mu_beta", "grand_mu_beta",
-                "sigma", "sigma_beta", "nu", "nu_help")
-    }
-    if(model.name == "M1c") {
-      # pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-      #           "sigma_beta", "log_lik", "log_lik2", "Yhat", "Yhat_snp",
-      #           "Yhat_strain", "rho", "nu", "nu_help")
-      pars <- c("alpha", "mu_beta", "grand_mu_beta",
-                "sigma", "sigma_beta", "rho", "nu", "nu_help") #beta ignored
-    }
+  # M0
+  if(model.name == "M0") {
+    pars <- c("alpha_trait", "sigma", "beta_snp",
+              "nu", "nu_help")
   }
-  else {
-    # M0
-    if(model.name == "M0") {
-      pars <- c("alpha", "beta", "sigma", "mu_beta", "nu", "nu_help")
-    }
-    if(model.name == "M0c") {
-      pars <- c("alpha", "beta", "sigma", "mu_beta", "rho", "nu", "nu_help")
-    }
-
-    # M1
-    if(model.name == "M1") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "nu", "nu_help")
-    }
-    if(model.name == "M1c") {
-      pars <- c("alpha", "beta", "mu_beta", "grand_mu_beta", "sigma",
-                "sigma_beta", "rho", "nu", "nu_help")
-    }
+  if(model.name == "M0c") {
+    pars <- c("alpha_trait", "sigma", "beta_snp",
+              "nu", "nu_help", "rho")
+  }
+  # M1
+  if(model.name == "M1") {
+    pars <- c("alpha_trait", "sigma", "beta_snp",
+              "sigma_snp", "nu", "nu_help")
+  }
+  if(model.name == "M1c") {
+    pars <- c("alpha_trait", "sigma", "beta_snp",
+              "sigma_snp", "nu", "nu_help", "rho")
   }
 
   return (pars)
@@ -615,43 +580,12 @@ getHdi <- function(vec, hdi.level) {
 
 
 
-
-getOrderedPars <- function(model) {
-
-  if(model == "M0") {
-    par <- c("alpha", "sigma", "mu_beta", "nu", "nu_help", "z", "beta",
-             "log_lik2", "log_lik", "Yhat", "Yhat_snp")
-  }
-
-  if(model == "M0c") {
-    par <- c("alpha", "sigma", "mu_beta", "nu", "nu_help", "z", "L_rho",
-             "beta", "log_lik2", "log_lik", "rho", "Yhat", "Yhat_snp")
-  }
-
-  if(model == "M1") {
-    par <- c("alpha", "grand_mu_beta", "sigma", "sigma_beta", "nu", "nu_help",
-             "z", "grand_z", "beta", "mu_beta", "log_lik2", "log_lik", "Yhat",
-             "Yhat_strain", "Yhat_snp")
-  }
-
-  if(model == "M1c") {
-    par <- c("alpha", "grand_mu_beta", "sigma", "sigma_beta", "nu", "nu_help",
-             "z", "grand_z", "L_rho", "beta", "mu_beta", "log_lik2", "log_lik",
-             "rho", "Yhat", "Yhat_strain", "Yhat_snp")
-  }
-
-}
-
-
-parseSamplingFile(files, par) {
-  for(f in csv.files) {
-    if(file.exists(f) == FALSE) {
-      stop(paste("File ", f, " does not exist \n", sep = ''))
-    }
-  }
-}
-
-getPpcData <- function(files) {
+# Description:
+# mcmc.warmup: number of warmup steps used
+# par: complete name of the parameter: Yhat_individual, Yhat_snp, or
+# Yhat_strain (only in M1/M1c)
+# files: list of file paths
+getPpcFromSampling <- function(files, mcmc.warmup, par) {
 
   createCustomAwk <- function(is) {
     str <- paste('{print ', paste(paste("$", is, sep = ''),
@@ -659,40 +593,96 @@ getPpcData <- function(files) {
     return (str)
   }
 
-  for(f in files) {
-    if(file.exists(f) == FALSE) {
-      stop(paste("File ", f, " does not exist \n", sep = ''))
+
+  if(length(par != 1)) {
+    stop("par can be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
+  }
+
+  if(is.character(par) == FALSE) {
+    stop("par can be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
+  }
+
+  if(all(par %in% c("Yhat_individual", "Yhat_strain", "Yhat_snp")) == FALSE) {
+    stop("par can be one of 'Yhat_individual', 'Yhat_strain' or 'Yhat_snp'")
+  }
+
+  data <- vector(mode = "list", length = length(files))
+
+  for(f in 1:length(files)) {
+    if(file.exists(files[f]) == FALSE) {
+      stop(paste("File ", files[f], " does not exist \n", sep = ''))
     }
 
-    lines <- readLines(con = f, n = 30)
-    lines <- unlist(strsplit(x = lines, split = '\\,'))
-    i.yhat <- which(regexpr(pattern = "Yhat", text = lines) != -1)
-    i.yhat.snp <- which(regexpr(pattern = "Yhat_snp", text = lines) != -1)
-
-    awk.line <- paste('awk -F "\"*,\"*" \'NR > 1000 {print $140}\' 2025076_sampling_M0c_1.csv')
-    cols <- readLines(con = pipe("gawk -F , -f awk2.awk 2025076_sampling_M0c_1.csv"))
+    awk.path <- paste("gawk -F , 'FNR == 26'", files[f], sep = ' ')
+    cols <- readLines(con = pipe(awk.path))
     cols <- unlist(strsplit(x = cols, split = ','))
-    is <- which(regexpr(pattern = "Yhat_snp", text = cols, ignore.case = TRUE) != -1)
+    is <- which(regexpr(pattern = par, text = cols, ignore.case = TRUE) != -1)
 
     awk <- createCustomAwk(is)
     writeLines(text = awk, con = "awk_temp.awk")
 
-    awk.path <- paste("gawk -F , -f awk_temp.awk", f, "> temp.csv", sep = ' ')
+    awk.path <- paste("gawk -F , -f awk_temp.awk",
+                      files[f], "> temp.csv", sep = ' ')
     d <- readLines(con = pipe(awk.path))
     d <- readLines(con = pipe("gawk -F , '(NR > 25)' temp.csv > temp2.csv"))
 
     # here take only samples (-warmup)
     d <- read.table(file = "temp2.csv", header = TRUE, as.is = TRUE, sep = ' ')
+    d <- d[complete.cases(d), ]
+    d <- d[-(1:mcmc.warmup), ]
+    data[[f]] <- d
+
+    # close active connections
+    # close(con = pipe(awk.path))
+    # close(con = pipe("gawk -F , '(NR > 25)' temp.csv > temp2.csv"))
+    closeAllConnections()
 
     # do some cleanup before next file
+    file.remove(c("awk_temp.awk", "temp.csv", "temp2.csv"))
+  }
+
+  # finally summarize data
+  rm(d)
+  data <- do.call(rbind, data)
+  y.mean <- apply(X = data, MARGIN = 2, FUN = mean)
+  y.median <- apply(X = data, MARGIN = 2, FUN = median)
+  y.hdi <- apply(X = data, MARGIN = 2, FUN = getHdi, hdi.level = 0.95)
+  y.hdi <- t(y.hdi)
+  y.data <- data.frame(par = names(y.mean), mean = y.mean,
+                       median = y.median, L = y.hdi[, 1],
+                       H = y.hdi[, 2], stringsAsFactors = FALSE)
+  par.data <- strsplit(x = y.data$par, split = "\\.")
+  par.data <- do.call(rbind, par.data)
 
 
-    # finally read data and summarize
-
+  if(par == "Yhat_individual") {
+    y.data$par.type <- par.data[, 1]
+    y.data$trait <- as.numeric(par.data[, 2])
+    y.data$individual <- as.numeric(par.data[, 3])
+    y.data$snp <- as.numeric(par.data[, 4])
   }
 
 
-  read.table(pipe("/Rtools/bin/gawk -f cut.awk bigdata.dat"))
+  if(par == "Yhat_strain") {
+    y.data$par.type <- par.data[, 1]
+    y.data$trait <- as.numeric(par.data[, 2])
+    y.data$strain <- as.numeric(par.data[, 3])
+    y.data$snp <- as.numeric(par.data[, 4])
+  }
+
+
+  if(par == "Yhat_snp") {
+    y.data$par.type <- par.data[, 1]
+    y.data$trait <- as.numeric(par.data[, 2])
+    y.data$allele <- ifelse(test = as.numeric(par.data[, 3]) == 1,
+                            yes = 1, no = -1)
+    y.data$snp <- as.numeric(par.data[, 4])
+  }
+
+
+  y.data$par <- NULL
+
+  return (y.data)
 }
 
 

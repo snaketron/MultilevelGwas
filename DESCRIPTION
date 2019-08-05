@@ -1,13 +1,14 @@
 Package: MultilevelGwas
-Title: Multi-level genome wide association studies of multiple traits
+Title: Genome wide association studies of multiple traits with Bayesian 
+    multilvel models
 Version: 0.99.0
 Authors@R: 
     person(given = "Simo",
            family = "Kitanovski",
            role = c("aut", "cre"),
            email = "simo.kitanovski@uni-due.de")
-Description: Genome wide association studies of multiple traits with Bayesian 
-    multi-level models.
+Description: Genome wide association studies of multiple traits in model 
+    organisms, such as inbred mice, with Bayesian multilevel models.
 License: GPL (>=3) + file LICENSE
 Depends: R (>= 3.4.0), Rcpp (>= 1.0.1), methods, stats, graphics
 Depends: 

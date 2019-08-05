@@ -8,14 +8,14 @@ data {
   int Yd[N, Ntd] ; // number of hits response
   vector [Ns] X [N]; // index of all individuals
   int K[N]; //index to all strains
-  int Xk [Nk, Ns]; // design matrix (K x S)
+  int Xk [Nk, Ns]; // design matrix for strains (K x S)
 }
 
 parameters {
-  vector [Ntq+Ntd] alpha;
-  vector [Ntq+Ntd] grand_mu_beta;
+  vector [Ntq+Ntd] alpha_trait;
+  vector [Ntq+Ntd] beta_trait;
   vector <lower = 0> [Ntq] sigma;
-  vector <lower = 0> [Ntq+Ntd] sigma_beta;
+  vector <lower = 0> [Ntq+Ntd] sigma_snp;
   vector <lower = 0> [Ntq+Ntd] nu;
   vector <lower = 2> [Ntq+Ntd] nu_help;
   matrix [Ns, Nk] z [Ntq+Ntd];
@@ -24,12 +24,12 @@ parameters {
 }
 
 transformed parameters {
-  matrix [Ns, Nk] beta [Ntq+Ntd];
-  matrix [Ntq+Ntd, Ns] mu_beta;
+  matrix [Ns, Nk] beta_strain [Ntq+Ntd];
+  matrix [Ntq+Ntd, Ns] beta_snp;
 
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
-       mu_beta[t][s] = grand_mu_beta[t] + sqrt(nu_help[t]/nu[t])*grand_z[t,s];
+       beta_snp[t][s] = beta_trait[t] + sqrt(nu_help[t]/nu[t])*grand_z[t,s];
     }
   }
 
@@ -37,7 +37,7 @@ transformed parameters {
   for(t in 1:(Ntq+Ntd)) {
     for(s in 1:Ns) {
       for(k in 1:Nk) {
-        beta[t][s, k] = mu_beta[t, s] + z[t][s, k]*sigma_beta[t];
+        beta_strain[t][s, k] = beta_snp[t, s] + z[t][s, k]*sigma_snp[t];
       }
     }
   }
@@ -47,21 +47,21 @@ model {
   for(i in 1:N) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yq[i,t] ~ normal(alpha[t] + X[i] .* beta[t][, K[i]], sigma[t]);
+        Yq[i,t] ~ normal(alpha_trait[t] + X[i] .* beta_strain[t][, K[i]], sigma[t]);
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yd[i,d] ~ bernoulli_logit(alpha[d+Ntq] + X[i] .* beta[d+Ntq][, K[i]]);
+        Yd[i,d] ~ bernoulli_logit(alpha_trait[d+Ntq] + X[i] .* beta_strain[d+Ntq][, K[i]]);
       }
     }
   }
 
-  alpha ~ student_t(1, 0, 100);
-  to_vector(grand_mu_beta) ~ student_t(1, 0, 10);
+  alpha_trait ~ student_t(1, 0, 100);
+  to_vector(beta_trait) ~ student_t(1, 0, 10);
 
   sigma ~ cauchy(0, 5);
-  sigma_beta ~ cauchy(0, 5);
+  sigma_snp ~ cauchy(0, 5);
   (nu_help-2) ~ exponential(0.5);
   nu ~ chi_square(nu_help);
 
@@ -73,9 +73,9 @@ model {
 }
 
 generated quantities {
-  matrix [N, Ns] log_lik2 [Ntq+Ntd];
+  matrix [N, Ns] log_lik_2 [Ntq+Ntd];
   matrix [N, Ntq+Ntd] log_lik;
-  matrix [N, Ns] Yhat [Ntq+Ntd];
+  matrix [N, Ns] Yhat_individual [Ntq+Ntd];
   matrix [Nk, Ns] Yhat_strain [Ntq+Ntd];
   matrix [2, Ns] Yhat_snp [Ntq+Ntd];
 
@@ -83,20 +83,20 @@ generated quantities {
     for(s in 1:Ns) {
       if(Ntq > 0) {
         for(t in 1:Ntq) {
-          log_lik2[t][i,s] = normal_lpdf(Yq[i,t] | alpha[t]+X[i][s]*beta[t][s,K[i]], sigma[t]);
-          Yhat[t][i,s] = normal_rng(alpha[t]+X[i][s]*beta[t][s,K[i]], sigma[t]);
+          log_lik_2[t][i,s] = normal_lpdf(Yq[i,t] | alpha_trait[t]+X[i][s]*beta_strain[t][s,K[i]], sigma[t]);
+          Yhat_individual[t][i,s] = normal_rng(alpha_trait[t]+X[i][s]*beta_strain[t][s,K[i]], sigma[t]);
         }
       }
       if(Ntd > 0) {
         for(d in 1:Ntd) {
-          log_lik2[d+Ntq][i,s] = bernoulli_logit_lpmf(Yd[i,d] | alpha[d+Ntq]+X[i][s]*beta[d+Ntq][s,K[i]]);
-          Yhat[Ntq+d][i,s] = bernoulli_rng(inv_logit(alpha[d+Ntq]+X[i][s]*beta[d+Ntq][s,K[i]]));
+          log_lik_2[d+Ntq][i,s] = bernoulli_logit_lpmf(Yd[i,d] | alpha_trait[d+Ntq]+X[i][s]*beta_strain[d+Ntq][s,K[i]]);
+          Yhat_individual[Ntq+d][i,s] = bernoulli_rng(inv_logit(alpha_trait[d+Ntq]+X[i][s]*beta_strain[d+Ntq][s,K[i]]));
         }
       }
     }
 
     for(t in 1:(Ntq+Ntd)) {
-      log_lik[i, t] = mean(log_lik2[t][i, ]);
+      log_lik[i, t] = mean(log_lik_2[t][i, ]);
     }
   }
 
@@ -104,23 +104,23 @@ generated quantities {
   for(s in 1:Ns) {
     if(Ntq > 0) {
       for(t in 1:Ntq) {
-        Yhat_snp[t][1, s] = alpha[t]+(+1)*mu_beta[t, s];
-        Yhat_snp[t][2, s] = alpha[t]+(-1)*mu_beta[t, s];
+        Yhat_snp[t][1, s] = alpha_trait[t]+(+1)*beta_snp[t, s];
+        Yhat_snp[t][2, s] = alpha_trait[t]+(-1)*beta_snp[t, s];
 
         // make strain-level predictions
         for(k in 1:Nk) {
-           Yhat_strain[t][k, s] = alpha[t]+Xk[k, s]*beta[t][s, k];
+           Yhat_strain[t][k, s] = alpha_trait[t]+Xk[k, s]*beta_strain[t][s, k];
         }
       }
     }
     if(Ntd > 0) {
       for(d in 1:Ntd) {
-        Yhat_snp[Ntq+d][1, s] = inv_logit(alpha[Ntq+d]+(+1)*mu_beta[Ntq+d, s]);
-        Yhat_snp[Ntq+d][2, s] = inv_logit(alpha[Ntq+d]+(-1)*mu_beta[Ntq+d, s]);
+        Yhat_snp[Ntq+d][1, s] = inv_logit(alpha_trait[Ntq+d]+(+1)*beta_snp[Ntq+d, s]);
+        Yhat_snp[Ntq+d][2, s] = inv_logit(alpha_trait[Ntq+d]+(-1)*beta_snp[Ntq+d, s]);
 
         // make strain-level predictions
         for(k in 1:Nk) {
-           Yhat_strain[Ntq+d][k, s] = inv_logit(alpha[Ntq+d]+Xk[k, s]*beta[Ntq+d][s, k]);
+           Yhat_strain[Ntq+d][k, s] = inv_logit(alpha_trait[Ntq+d]+Xk[k, s]*beta_strain[Ntq+d][s, k]);
         }
       }
     }

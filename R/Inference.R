@@ -27,13 +27,13 @@ runInference <- function(gt.data,
 
 
   # get appropriate parameters to monitor
-  pars <- getStanModelPars(model.name = stan.model@model_name,
-                           comparison = comparison)
+  pars <- getStanModelPars(model.name = stan.model@model_name)
 
 
   # sample file
-  sample.file <- paste(round(x = runif(n = 1, min = 0, max = 10^8), digits = 0),
+  sample.file <- paste(round(x = runif(n = 1, min = 0, max = 10^6), digits = 0),
                     "_sampling_", stan.model@model_name, sep = '')
+
 
   # run
   p <- rstan::sampling(object = stan.model,
@@ -47,7 +47,8 @@ runInference <- function(gt.data,
                        pars = pars,
                        include = TRUE,
                        sample_file = sample.file,
-                       refresh = 250)
+                       refresh = 100,
+                       algorithm = "NUTS")
 
   return (p)
 }
