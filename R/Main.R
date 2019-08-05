@@ -39,7 +39,6 @@ runGwas <- function(genotype,
                          strains = strains)
 
 
-
   # compile stan model
   cat("Compiling model ... \n")
   stan.model <- getStanModel(model.name = model)
@@ -169,13 +168,13 @@ runComparison <- function(genotype,
 
 
     cat(paste("Computing PPC (", model, ")", "..., \n", sep = ''))
-    if(all(file.exists(glm$sample.files)) == FALSE) {
+    if(all(file.exists(out[[model]]$sample.files)) == FALSE) {
       warning("Sampling files not found, PPC skipped ...")
       ppc[[model]] <- NA
     }
     else {
       ppc[[model]] <- getPpc(gt.data = gt.data,
-                             sampling.files = glm$sample.files,
+                             sampling.files = out[[model]]$sample.files,
                              mcmc.warmup = mcmc.warmup,
                              model = model)
     }
