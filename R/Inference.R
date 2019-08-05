@@ -30,9 +30,10 @@ runInference <- function(gt.data,
   pars <- getStanModelPars(model.name = stan.model@model_name)
 
 
+
   # sample file
-  sample.file <- paste(round(x = runif(n = 1, min = 0, max = 10^6), digits = 0),
-                    "_sampling_", stan.model@model_name, sep = '')
+  sample.file <- paste(round(x = runif(n=1,min=0,max=10^6), digits=0),
+                       "sampling", stan.model@model_name, sep = '_')
 
 
   # run
@@ -50,5 +51,6 @@ runInference <- function(gt.data,
                          refresh = 100,
                          algorithm = "NUTS")
 
-  return (list(glm = glm, sample.file = sample.file))
+  files <- paste(paste(sample.file, "_", 1:mcmc.chains, sep = ''),".csv",sep='')
+  return (list(glm = glm, sample.files = files))
 }

@@ -64,15 +64,13 @@ runGwas <- function(genotype,
 
 
   cat("Compute PPC ... \n")
-  sampling.files <- paste(paste(glm$sampling.file, "sampling", model,
-                                1:mcmc.chains, sep = '_'), "csv", sep = '.')
-  if(all(file.exists(sampling.files)) == FALSE) {
+  if(all(file.exists(glm$sample.files)) == FALSE) {
     warning("Sampling files not found, PPC skipped ...")
     ppc <- NA
   }
   else {
     ppc <- getPpc(gt.data = gt.data,
-                  sampling.files = sampling.files,
+                  sampling.files = glm$sample.files,
                   mcmc.warmup = mcmc.warmup,
                   model = model)
   }
@@ -171,16 +169,13 @@ runComparison <- function(genotype,
 
 
     cat(paste("Computing PPC (", model, ")", "..., \n", sep = ''))
-    sampling.files <- paste(paste(out[[model]]$sampling.file,
-                                  "sampling", model, 1:mcmc.chains,
-                                  sep = '_'), "csv", sep = '.')
-    if(all(file.exists(sampling.files)) == FALSE) {
+    if(all(file.exists(glm$sample.files)) == FALSE) {
       warning("Sampling files not found, PPC skipped ...")
       ppc[[model]] <- NA
     }
     else {
       ppc[[model]] <- getPpc(gt.data = gt.data,
-                             sampling.files = sampling.files,
+                             sampling.files = glm$sample.files,
                              mcmc.warmup = mcmc.warmup,
                              model = model)
     }

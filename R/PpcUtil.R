@@ -185,34 +185,39 @@ getPpc <- function(gt.data, sampling.files,
                    mcmc.warmup, model) {
 
   # 1.
-  observed.data <- getObservedData(gt.data = gt.data)
+  o <- getObservedData(gt.data = gt.data)
 
   # 2.
   yhat.snp <- getPpcFromSampling(files = sampling.files,
-                                 mcmc.warmup = 500,
+                                 mcmc.warmup = mcmc.warmup,
                                  par = "Yhat_snp")
 
   # 3.
   yhat.individual <- getPpcFromSampling(files = sampling.files,
-                                        mcmc.warmup = 500,
+                                        mcmc.warmup = mcmc.warmup,
                                         par = "Yhat_individual")
 
   # 4.
-  yhat.strain <- getPpcFromSampling(files = sampling.files,
-                                    mcmc.warmup = 500,
-                                    par = "Yhat_strain")
-
-  # 5.
   ppc.snp <- merge(x = o$out.s, y = yhat.snp,
                    by = c("trait", "snp", "X"))
+  ppc.snp$error.mean <- abs(ppc.snp$ppc.mean-ppc.snp$observed.mean)
+
+
+  # 5.
   ppc.individual <- merge(x = o$out.i, y = yhat.individual,
                           by = c("trait", "individual"))
+  ppc.individual$error.mean <- abs(ppc.individual$ppc.mean-
+                                     ppc.individual$observed.mean)
 
   # 6.
   ppc.strain <- NA
   if(model %in% c("M1", "M1c")) {
-    ppc.strain <- merge(x = o$out.k, y = yhat.individual,
-                        by = c("trait", "strain"))
+    yhat.strain <- getPpcFromSampling(files = sampling.files,
+                                      mcmc.warmup = mcmc.warmup,
+                                      par = "Yhat_strain")
+
+    ppc.strain <- merge(x = o$out.k, y = yhat.strain, by = c("trait", "strain"))
+    ppc.strain$error.mean <- abs(ppc.strain$ppc.mean-ppc.strain$observed.mean)
   }
 
   # 7.
