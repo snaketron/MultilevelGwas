@@ -61,18 +61,18 @@ runGwas <- function(genotype,
                       hdi.level = hdi.level,
                       gt.data = gt.data)
 
-
-  cat("Compute PPC ... \n")
-  if(all(file.exists(glm$sample.files)) == FALSE) {
-    warning("Sampling files not found, PPC skipped ...")
-    ppc <- NA
-  }
-  else {
-    ppc <- getPpc(gt.data = gt.data,
-                  sampling.files = glm$sample.files,
-                  mcmc.warmup = mcmc.warmup,
-                  model = model)
-  }
+  ppc <- NA
+  # cat("Compute PPC ... \n")
+  # if(all(file.exists(glm$sample.files)) == FALSE) {
+  #   warning("Sampling files not found, PPC skipped ...")
+  #   ppc <- NA
+  # }
+  # else {
+  #   ppc <- getPpc(gt.data = gt.data,
+  #                 sampling.files = glm$sample.files,
+  #                 mcmc.warmup = mcmc.warmup,
+  #                 model = model)
+  # }
 
   return (list(glm = glm, scores = scores, ppc = ppc))
 }
@@ -167,17 +167,18 @@ runComparison <- function(genotype,
                                  gt.data = gt.data)
 
 
-    cat(paste("Computing PPC (", model, ")", "..., \n", sep = ''))
-    if(all(file.exists(out[[model]]$sample.files)) == FALSE) {
-      warning("Sampling files not found, PPC skipped ...")
-      ppc[[model]] <- NA
-    }
-    else {
-      ppc[[model]] <- getPpc(gt.data = gt.data,
-                             sampling.files = out[[model]]$sample.files,
-                             mcmc.warmup = mcmc.warmup,
-                             model = model)
-    }
+    ppc <- NA
+    # cat(paste("Computing PPC (", model, ")", "..., \n", sep = ''))
+    # if(all(file.exists(out[[model]]$sample.files)) == FALSE) {
+    #   warning("Sampling files not found, PPC skipped ...")
+    #   ppc[[model]] <- NA
+    # }
+    # else {
+    #   ppc[[model]] <- getPpc(gt.data = gt.data,
+    #                          sampling.files = out[[model]]$sample.files,
+    #                          mcmc.warmup = mcmc.warmup,
+    #                          model = model)
+    # }
   }
 
   return (list(out = out, scores = scores, ppc = ppc))

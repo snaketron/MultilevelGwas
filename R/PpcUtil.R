@@ -73,11 +73,10 @@ getObservedData <- function(gt.data) {
 
 
 # Description:
-# mcmc.warmup: number of warmup steps used
 # par: complete name of the parameter: Yhat_individual, Yhat_snp, or
 # Yhat_strain (only in M1/M1c)
 # files: list of file paths
-getPpcFromSampling <- function(files, mcmc.warmup, par) {
+getPpcFromSampling <- function(files, par) {
 
   createCustomAwk <- function(is) {
     str <- paste('{print ', paste(paste("$", is, sep = ''),
@@ -99,11 +98,22 @@ getPpcFromSampling <- function(files, mcmc.warmup, par) {
 
   data <- vector(mode = "list", length = length(files))
 
+  cat("processing file: ")
   for(f in 1:length(files)) {
+    cat(f, ",")
     if(file.exists(files[f]) == FALSE) {
       stop(paste("File ", files[f], " does not exist \n", sep = ''))
     }
 
+    # mcmc.warmup
+    awk.path.pipe <- pipe(paste("gawk -F , 'FNR == 10'", files[f], sep = ' '))
+    cols <- readLines(con = awk.path.pipe)
+    close(con = awk.path.pipe)
+    mcmc.warmup <- gsub(pattern = '\\#| |warmup|=', replacement = '', x = cols)
+    mcmc.warmup <- as.numeric(mcmc.warmup)
+
+
+    # colnames
     awk.path.pipe <- pipe(paste("gawk -F , 'FNR == 26'", files[f], sep = ' '))
     cols <- readLines(con = awk.path.pipe)
     close(con = awk.path.pipe)
@@ -135,6 +145,7 @@ getPpcFromSampling <- function(files, mcmc.warmup, par) {
     # do some cleanup before next file
     file.remove(c("awk_temp.awk", "temp.csv", "temp2.csv"))
   }
+  cat("\n")
 
   # finally summarize data
   rm(d)
@@ -181,20 +192,19 @@ getPpcFromSampling <- function(files, mcmc.warmup, par) {
 # Horizontal posterior predictions
 # Uses: getObservedData
 # Uses: getPpcFromSampling
-getPpc <- function(gt.data, sampling.files,
-                   mcmc.warmup, model) {
+getPpc <- function(gt.data, sampling.files, model) {
 
   # 1.
   o <- getObservedData(gt.data = gt.data)
 
   # 2.
+  cat("Reading Yhat_snp ... \n ")
   yhat.snp <- getPpcFromSampling(files = sampling.files,
-                                 mcmc.warmup = mcmc.warmup,
                                  par = "Yhat_snp")
 
   # 3.
+  cat("Reading Yhat_individual ... \n ")
   yhat.individual <- getPpcFromSampling(files = sampling.files,
-                                        mcmc.warmup = mcmc.warmup,
                                         par = "Yhat_individual")
 
   # 4.
@@ -212,8 +222,9 @@ getPpc <- function(gt.data, sampling.files,
   # 6.
   ppc.strain <- NA
   if(model %in% c("M1", "M1c")) {
+
+    cat("Reading Yhat_strain ... \n ")
     yhat.strain <- getPpcFromSampling(files = sampling.files,
-                                      mcmc.warmup = mcmc.warmup,
                                       par = "Yhat_strain")
 
     ppc.strain <- merge(x = o$out.k, y = yhat.strain, by = c("trait", "strain"))

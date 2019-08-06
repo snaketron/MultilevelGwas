@@ -14,3 +14,6 @@ src/stan_files/*.hpp
 src/stan_files/*.rds
 *.RData
 *sampling_M*_*.csv
+*awk
+temp.csv
+temp2.csv
