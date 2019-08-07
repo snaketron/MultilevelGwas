@@ -72,6 +72,7 @@ getObservedData <- function(gt.data) {
 
 
 
+
 # Description:
 # par: complete name of the parameter: Yhat_individual, Yhat_snp, or
 # Yhat_strain (only in M1/M1c)
@@ -100,7 +101,7 @@ getPpcFromSampling <- function(files, par) {
 
   cat("processing file: ")
   for(f in 1:length(files)) {
-    cat(f, ",")
+    cat(f, ", ", sep = '')
     if(file.exists(files[f]) == FALSE) {
       stop(paste("File ", files[f], " does not exist \n", sep = ''))
     }
@@ -188,6 +189,8 @@ getPpcFromSampling <- function(files, par) {
 }
 
 
+
+
 # Description:
 # Horizontal posterior predictions
 # Uses: getObservedData
@@ -197,29 +200,27 @@ getPpc <- function(gt.data, sampling.files, model) {
   # 1.
   o <- getObservedData(gt.data = gt.data)
 
+
   # 2.
   cat("Reading Yhat_snp ... \n ")
   yhat.snp <- getPpcFromSampling(files = sampling.files,
                                  par = "Yhat_snp")
-
-  # 3.
-  cat("Reading Yhat_individual ... \n ")
-  yhat.individual <- getPpcFromSampling(files = sampling.files,
-                                        par = "Yhat_individual")
-
-  # 4.
   ppc.snp <- merge(x = o$out.s, y = yhat.snp,
                    by = c("trait", "snp", "X"))
   ppc.snp$error.mean <- abs(ppc.snp$ppc.mean-ppc.snp$observed.mean)
 
 
-  # 5.
-  ppc.individual <- merge(x = o$out.i, y = yhat.individual,
-                          by = c("trait", "individual"))
-  ppc.individual$error.mean <- abs(ppc.individual$ppc.mean-
-                                     ppc.individual$observed.mean)
+  # 3.
+  ppc.individual <- NA
+  # cat("Reading Yhat_individual ... \n ")
+  # yhat.individual <- getPpcFromSampling(files = sampling.files,
+  #                                       par = "Yhat_individual")
+  # ppc.individual <- merge(x = o$out.i, y = yhat.individual,
+  #                         by = c("trait", "individual"))
+  # ppc.individual$error.mean <- abs(ppc.individual$ppc.mean-
+  #                                    ppc.individual$observed.mean)
 
-  # 6.
+  # 4.
   ppc.strain <- NA
   if(model %in% c("M1", "M1c")) {
 
@@ -231,7 +232,7 @@ getPpc <- function(gt.data, sampling.files, model) {
     ppc.strain$error.mean <- abs(ppc.strain$ppc.mean-ppc.strain$observed.mean)
   }
 
-  # 7.
+  # 5.
   return(list(ppc.individual = ppc.individual,
               ppc.strain = ppc.strain,
               ppc.snp = ppc.snp))

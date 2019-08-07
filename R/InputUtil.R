@@ -312,3 +312,16 @@ checkMaxTreedepth <- function(max.treedepth) {
     stop("max.treedepth >= 5 (default = 10).")
   }
 }
+
+
+# Description:
+# Is the specified write.samples valid
+checkWriteSamples <- function(write.samples) {
+  if(length(write.samples) != 1) {
+    stop("write.samples is a logical parameter.")
+  }
+
+  if(is.logical(write.samples) == FALSE) {
+    stop("write.samples is a logical parameter.")
+  }
+}

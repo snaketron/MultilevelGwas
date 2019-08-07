@@ -354,7 +354,8 @@ checkInput <- function(genotype,
                        mcmc.cores,
                        hdi.level,
                        adapt.delta,
-                       max.treedepth) {
+                       max.treedepth,
+                       write.samples) {
 
 
   if(is.null(genotype) | missing(genotype) |
@@ -368,7 +369,8 @@ checkInput <- function(genotype,
      is.null(mcmc.cores) | missing(mcmc.cores) |
      is.null(adapt.delta) | missing(adapt.delta) |
      is.null(max.treedepth) | missing(max.treedepth) |
-     is.null(hdi.level) | missing(hdi.level)) {
+     is.null(hdi.level) | missing(hdi.level) |
+     is.null(write.samples) | missing(write.samples)) {
     stop("arguments must be non-NULL/specified")
   }
 
@@ -384,6 +386,7 @@ checkInput <- function(genotype,
   checkHdi(hdi.level = hdi.level)
   checkAdaptDelta(adapt.delta = adapt.delta)
   checkMaxTreedepth(max.treedepth = max.treedepth)
+  checkWriteSamples(write.samples = write.samples)
 }
 
 

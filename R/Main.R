@@ -14,7 +14,8 @@ runGwas <- function(genotype,
                     mcmc.cores = 4,
                     hdi.level = 0.95,
                     adapt.delta = 0.95,
-                    max.treedepth = 10) {
+                    max.treedepth = 10,
+                    write.samples = TRUE) {
 
 
   # check inputs
@@ -29,7 +30,8 @@ runGwas <- function(genotype,
              mcmc.cores = mcmc.cores,
              hdi.level = hdi.level,
              adapt.delta = adapt.delta,
-             max.treedepth = max.treedepth)
+             max.treedepth = max.treedepth,
+             write.samples = write.samples)
 
 
   # convert input data to genetic-trait data (for stan)
@@ -53,7 +55,9 @@ runGwas <- function(genotype,
                       stan.model = stan.model,
                       adapt.delta = adapt.delta,
                       max.treedepth = max.treedepth,
-                      comparison = FALSE)
+                      comparison = FALSE,
+                      write.samples = write.samples)
+
 
   cat("Compute scores ... \n")
   scores <- getScores(glm = glm$glm,
@@ -61,22 +65,9 @@ runGwas <- function(genotype,
                       hdi.level = hdi.level,
                       gt.data = gt.data)
 
-  ppc <- NA
-  # cat("Compute PPC ... \n")
-  # if(all(file.exists(glm$sample.files)) == FALSE) {
-  #   warning("Sampling files not found, PPC skipped ...")
-  #   ppc <- NA
-  # }
-  # else {
-  #   ppc <- getPpc(gt.data = gt.data,
-  #                 sampling.files = glm$sample.files,
-  #                 mcmc.warmup = mcmc.warmup,
-  #                 model = model)
-  # }
 
-  return (list(glm = glm, scores = scores, ppc = ppc))
+  return (list(glm = glm, scores = scores))
 }
-
 
 
 
@@ -94,7 +85,8 @@ runComparison <- function(genotype,
                           mcmc.cores = 4,
                           hdi.level = 0.95,
                           adapt.delta = 0.95,
-                          max.treedepth = 10) {
+                          max.treedepth = 10,
+                          write.samples = TRUE) {
 
   # check inputs
   checkInput(genotype = genotype,
@@ -108,7 +100,8 @@ runComparison <- function(genotype,
              mcmc.cores = mcmc.cores,
              hdi.level = hdi.level,
              adapt.delta = adapt.delta,
-             max.treedepth = max.treedepth)
+             max.treedepth = max.treedepth,
+             write.samples = write.samples)
 
 
   # check models input
@@ -166,22 +159,9 @@ runComparison <- function(genotype,
                                  hdi.level = hdi.level,
                                  gt.data = gt.data)
 
-
-    ppc <- NA
-    # cat(paste("Computing PPC (", model, ")", "..., \n", sep = ''))
-    # if(all(file.exists(out[[model]]$sample.files)) == FALSE) {
-    #   warning("Sampling files not found, PPC skipped ...")
-    #   ppc[[model]] <- NA
-    # }
-    # else {
-    #   ppc[[model]] <- getPpc(gt.data = gt.data,
-    #                          sampling.files = out[[model]]$sample.files,
-    #                          mcmc.warmup = mcmc.warmup,
-    #                          model = model)
-    # }
   }
 
-  return (list(out = out, scores = scores, ppc = ppc))
+  return (list(out = out, scores = scores))
 }
 
 
