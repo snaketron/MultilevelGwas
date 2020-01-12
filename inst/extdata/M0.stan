@@ -1,95 +1,42 @@
 data {
-  int N; // number of all entries
-  int Ntq; // number of continuous traits
-  int Ntd; // number of dichotomous traits
-  int Ns; // number of all SNPs
-  real Yq[N, Ntq] ; // number of hits response
-  int Yd[N, Ntd] ; // number of hits response
-  vector [Ns] X [N]; // index of all individuals
+  int N;                    // number of all entries
+  int Ns;                   // number of all SNPs
+  real Y [N];               // number of hits response
+  vector [Ns] X [N];        // index of all individuals
+  int <lower=0, upper=1> P; // trait type: 1=cont, 0=dich
 }
+
 
 parameters {
-  vector [Ntq+Ntd] alpha_trait;
-  vector <lower = 0> [Ntq] sigma;
-  vector [Ntq+Ntd] beta_trait;
-  vector <lower = 0> [Ntq+Ntd] nu;
-  vector <lower = 2> [Ntq+Ntd] nu_help;
-  vector [Ns] z [Ntq+Ntd];
+  real alpha_trait;
+  real beta_trait;
+  real <lower = 0> sigma [P];
+  real <lower = 0> sigma_trait;
+  real <lower = 0> nu_trait;
+  vector <offset = beta_trait, multiplier = sigma_trait> [Ns] beta_snp;
 }
 
-transformed parameters {
-  vector [Ns] beta_snp [Ntq+Ntd];
-
-  for(t in 1:(Ntq+Ntd)) {
-    beta_snp[t] = beta_trait[t] + sqrt(nu_help[t]/nu[t]) * z[t];
-  }
-}
 
 model {
-  for(i in 1:N) {
-    if(Ntq > 0) {
-      for(t in 1:Ntq) {
-        Yq[i,t] ~ normal(alpha_trait[t] + X[i] .* beta_snp[t], sigma[t]);
-      }
+  int Yint;
+  if(P == 1) {
+    for(i in 1:N) {
+      Y[i] ~ normal(alpha_trait + X[i] .* beta_snp, sigma);
     }
-    if(Ntd > 0) {
-      for(d in 1:Ntd) {
-        Yd[i,d] ~ bernoulli_logit(alpha_trait[d+Ntq] + X[i] .* beta_snp[d+Ntq]);
-      }
+    sigma ~ cauchy(0, 5);
+  }
+  if(P == 0) {
+    for(i in 1:N) {
+      Y[i]>0?1:0 ~ bernoulli_logit(alpha_trait + X[i] .* beta_snp);
     }
   }
 
-  alpha_trait ~ student_t(1, 0, 100);
-  beta_trait ~ student_t(1, 0, 10);
-  sigma ~ cauchy(0, 5);
-  (nu_help-2) ~ exponential(0.5);
-  nu ~ chi_square(nu_help);
+  alpha_trait ~ normal(0, 20);
+  beta_trait ~ normal(0, 5);
 
-  for(t in 1:(Ntq+Ntd)) {
-    z[t] ~ normal(0, 1);
-  }
+  beta_snp ~ student_t(nu_trait, beta_trait, sigma_trait);
+
+  sigma_trait ~ cauchy(0, 5);
+  nu_trait ~ gamma(2, 0.1);
 }
 
-generated quantities {
-  matrix [N, Ns] log_lik_2 [Ntq+Ntd];
-  matrix [N, Ntq+Ntd] log_lik;
-  matrix [N, Ns] Yhat_individual [Ntq+Ntd];
-  matrix [2, Ns] Yhat_snp [Ntq+Ntd];
-
-  for(i in 1:N) {
-    for(s in 1:Ns) {
-      if(Ntq > 0) {
-        for(t in 1:Ntq) {
-          log_lik_2[t][i,s] = normal_lpdf(Yq[i,t] | alpha_trait[t]+X[i][s]*beta_snp[t][s], sigma[t]);
-          Yhat_individual[t][i,s] = normal_rng(alpha_trait[t]+X[i][s]*beta_snp[t][s], sigma[t]);
-        }
-      }
-      if(Ntd > 0) {
-        for(d in 1:Ntd) {
-          log_lik_2[Ntq+d][i,s] = bernoulli_logit_lpmf(Yd[i, d] | alpha_trait[Ntq+d]+X[i][s]*beta_snp[Ntq+d][s]);
-          Yhat_individual[Ntq+d][i,s] = bernoulli_rng(inv_logit(alpha_trait[Ntq+d]+X[i][s]*beta_snp[Ntq+d][s]));
-        }
-      }
-    }
-
-    for(t in 1:(Ntq+Ntd)) {
-      log_lik[i, t] = mean(log_lik_2[t][i, ]);
-    }
-  }
-
-  // make SNP-level predictions
-  for(s in 1:Ns) {
-    if(Ntq > 0) {
-      for(t in 1:Ntq) {
-        Yhat_snp[t][1, s] = alpha_trait[t]+(+1)*beta_snp[t][s];
-        Yhat_snp[t][2, s] = alpha_trait[t]+(-1)*beta_snp[t][s];
-      }
-    }
-    if(Ntd > 0) {
-      for(d in 1:Ntd) {
-        Yhat_snp[Ntq+d][1, s] = inv_logit(alpha_trait[Ntq+d]+(+1)*beta_snp[Ntq+d][s]);
-        Yhat_snp[Ntq+d][2, s] = inv_logit(alpha_trait[Ntq+d]+(-1)*beta_snp[Ntq+d][s]);
-      }
-    }
-  }
-}
