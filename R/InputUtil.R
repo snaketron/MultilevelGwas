@@ -1,3 +1,4 @@
+
 # Description:
 # Is the genotype (SNP) data bi-allelic?
 checkBiallelic <- function(genotype) {
@@ -14,7 +15,7 @@ checkBiallelic <- function(genotype) {
 
 # Description:
 # Is the genotype, trait and trait.type data consistent?
-checkGenotypeTrait <- function(genotype, traits, trait.type) {
+checkGenotypeTrait <- function(genotype, trait, trait.type) {
   # CHECK: genotype
   if(is.null(attr(genotype, "class")) == FALSE) {
     if(!attr(genotype, "class") %in% c("AAMultipleAlignment",
@@ -65,90 +66,66 @@ checkGenotypeTrait <- function(genotype, traits, trait.type) {
 
 
 
-  # CHECK: traits
-  if(!is.vector(traits) & !is.matrix(traits)) {
-    stop("The traits must be either a vector (single traits) or matrix
-           (with multiple traits = columns), where the rows match the rows
-           of the genotype data")
+  # CHECK: trait
+  if(!is.vector(trait)) {
+    stop("The trait must be provided as vector, with elements
+         that match individuals")
   }
 
-  # convert vector -> matrix
-  if(is.vector(traits) == TRUE) {
-    traits <- matrix(data = traits, ncol = 1)
+  if(!is.numeric(trait)) {
+    stop("The trait must be of numeric type.")
   }
 
-  if(!is.numeric(traits)) {
-    stop("The traits must be of numeric type.")
+  if(length(trait) < 3) {
+    stop("The trait vector must contain at least 3 data points.")
   }
 
-  if(nrow(traits) < 3) {
-    stop("The traits must contain at least 3 data points.")
-  }
-
-  if(nrow(genotype) != nrow(traits)) {
-    stop("length(genotype) != length(traits),
+  if(nrow(genotype) != length(trait)) {
+    stop("nrow(genotype) != length(trait),
            they must be equal in length.")
   }
 
 
 
   # CHECK: trait.type
-  if(is.vector(trait.type) == FALSE) {
-    stop("trait.type must be vector. Each element in this vector refers
-           to the type of each traits, with 'Q' (for quantitative traits)
-           or 'D' (for dichotomous) included as each columns in the traits
-           data. If a single trait is provided, then the trait.type should
-           be a single 'Q' or 'D'.")
+  if(is.character(trait.type) == FALSE) {
+    stop("trait.type can be 'Q' or 'D'.")
   }
 
-  if(length(trait.type) == 0) {
-    stop("The trait.type vector must contain at least 1 element.")
+  if(length(trait.type) != 1) {
+    stop("The trait.type vector must contain 1 element.")
   }
 
   if(typeof(trait.type) != "character") {
-    stop("trait.type must be character vector with elements 'Q' (for
-           quantitative traits) or 'D' (for dichotomous)")
+    stop("trait.type can be 'Q' or 'D'.")
   }
 
-  if(ncol(traits) != length(trait.type)) {
-    stop("Number of traits provided differs from traits types.")
-  }
-
-  if(all(trait.type %in% c("Q", "D")) == FALSE) {
-    stop("trait.type must be character vector with elements 'Q' (for
-           quantitative traits) or 'D' (for dichotomous)")
+  if(!trait.type %in% c("Q", "D")) {
+    stop("trait.type can be 'Q' or 'D'.")
   }
 }
 
 # Description:
-# Are the traits valid?
-checkTraitValidity <- function(traits, trait.type) {
+# Is the trait valid?
+checkTraitValidity <- function(trait, trait.type) {
 
-  # convert vector -> matrix
-  if(is.vector(traits) == TRUE) {
-    traits <- matrix(data = traits, ncol = 1)
-  }
-
-  # check traits types
-  for(i in 1:length(trait.type)) {
-    if(trait.type[i] == "D") {
-      if(length(unique(traits[, i])) != 2) {
-        stop("The dichotomous traits must contain exactly two
+  # check trait
+  if(trait.type == "D") {
+    if(length(unique(trait)) != 2) {
+      stop("The dichotomous trait must contain exactly two
                categories (classes) \n")
-      }
     }
-    if(trait.type[i] == "Q") {
-      if(length(unique(traits[, i])) <= 3) {
-        warning("The quantitative trait/s contains 3 or less unique
-                  elements \n")
-      }
+  }
+  if(trait.type == "Q") {
+    if(length(unique(trait)) <= 3) {
+      stop("The quantitative trait must contain >= 3 unique data points")
     }
   }
 }
 
 # Description:
 # Are the strains valid?
-checkStrains <- function(strains, traits) {
+checkStrains <- function(strains, trait) {
 
   if(is.vector(strains) == FALSE) {
     stop("The strain identifiers must be provided in a vector")
@@ -161,22 +138,16 @@ checkStrains <- function(strains, traits) {
            numeric or factor vector")
   }
 
-  if(is.vector(traits) == TRUE) {
-    if(length(traits) != length(strains)) {
+  if(is.vector(trait) == TRUE) {
+    if(length(trait) != length(strain)) {
       stop("One strain identifier per individual (trait measurement)
-             must be provided")
-    }
-  }
-  else {
-    if(nrow(traits) != length(strains)) {
-      stop("One strain identifier per individual (traits measurement)
              must be provided")
     }
   }
 
   if(length(strains) == 0) {
-    stop("One strain identifier per individual (traits measurement)
-             must be provided")
+    stop("One strain identifier per individual (trait measurement)
+         must be provided")
   }
 }
 
@@ -312,7 +283,6 @@ checkMaxTreedepth <- function(max.treedepth) {
     stop("max.treedepth >= 5 (default = 10).")
   }
 }
-
 
 # Description:
 # Is the specified write.samples valid

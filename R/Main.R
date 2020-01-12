@@ -4,7 +4,7 @@
 # Description:
 # Main analysis
 runGwas <- function(genotype,
-                    traits,
+                    trait,
                     trait.type,
                     strains,
                     model,
@@ -20,7 +20,7 @@ runGwas <- function(genotype,
 
   # check inputs
   checkInput(genotype = genotype,
-             traits = traits,
+             trait = trait,
              trait.type = trait.type,
              strains = strains,
              model = model,
@@ -35,10 +35,10 @@ runGwas <- function(genotype,
 
 
   # convert input data to genetic-trait data (for stan)
-  gt.data <- getStanData(genotype = genotype,
-                         traits = traits,
-                         trait.type = trait.type,
-                         strains = strains)
+  gt.data <- getStanFormat(genotype = genotype,
+                           trait = trait,
+                           trait.type = trait.type,
+                           strains = strains)
 
 
   # compile stan model
@@ -75,7 +75,7 @@ runGwas <- function(genotype,
 # Description:
 # Comparison analysis
 runComparison <- function(genotype,
-                          traits,
+                          trait,
                           trait.type,
                           strains,
                           models,
@@ -90,7 +90,7 @@ runComparison <- function(genotype,
 
   # check inputs
   checkInput(genotype = genotype,
-             traits = traits,
+             trait = trait,
              trait.type = trait.type,
              strains = strains,
              model = "M0",
@@ -109,14 +109,14 @@ runComparison <- function(genotype,
   if(length(models) <= 1) {
     stop("at least two models must be specified.")
   }
-  if(all(models %in% c("M0", "M0c", "M1", "M1c")) == FALSE) {
-    stop("allowed models are 'M0', 'M0c', 'M1' and 'M1c'.")
+  if(all(models %in% c("M0", "M1")) == FALSE) {
+    stop("allowed models are 'M0' and 'M1'.")
   }
 
 
   # convert input data to genetic-trait data (for stan)
   gt.data <- getStanData(genotype = genotype,
-                         traits = traits,
+                         trait = trait,
                          trait.type = trait.type,
                          strains = strains)
 

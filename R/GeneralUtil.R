@@ -1,205 +1,52 @@
-
-
 # Description:
 # Parse input data and format it for stan and statistical learning
-getStanData <- function(genotype,
-                        traits,
-                        trait.type,
-                        strains) {
+# Get genotype-trait data
+getStanFormat <- function(genotype,
+                          trait,
+                          trait.type,
+                          strains) {
 
 
-  # Description:
-  # Get genotype-traits data
-  getFormattedGenphen <- function(genotype,
-                                  traits,
-                                  trait.type,
-                                  strains) {
+  # convert AAMultipleAlignment to matrix if needed
+  genotype <- convertMsaToGenotype(genotype = genotype)
 
 
-    # convert AAMultipleAlignment to matrix if needed
-    genotype <- convertMsaToGenotype(genotype = genotype)
+  # if vector genotype => matrix genotype
+  if(is.vector(genotype)) {
+    genotype <- matrix(data = genotype, ncol = 1)
+  }
 
-
-    # if vector genotype => matrix genotype
-    if(is.vector(genotype)) {
-      genotype <- matrix(data = genotype, ncol = 1)
+  # TODO: check
+  if(trait.type == "D") {
+    if(all(trait %in% c(1, 0)) == FALSE) {
+      # mapping 1st element to 1, 2nd to 0
+      u <- unique(trait)
+      trait[trait == u[1]] <- 1
+      trait[trait == u[2]] <- 0
+      cat("Mapping dichotomous trait:",
+          "(", u[1], "->1,", u[2], "->0) \n")
     }
-
-    # if vector genotype => matrix genotype
-    if(is.vector(traits)) {
-      traits <- matrix(data = traits, ncol = 1)
-    }
-
-    traits <- data.frame(traits)
-
-
-    # TODO: check
-    if(sum(trait.type == "D") != 0) {
-      d <- which(trait.type == "D")
-      for(i in 1:length(d)) {
-        if(all(traits[, d] %in% c(1, 0)) == FALSE) {
-          # mapping 1st element to 1, 2nd to 0
-          u <- unique(traits[, d])
-          traits[traits[, d] == u[1], d] <- "1"
-          traits[traits[, d] == u[2], d] <- "0"
-          cat("Mapping dichotomous traits:", i,
-              "(", u[1], "->1,", u[2], "->0) \n")
-        }
-        traits[, d] <- as.factor(as.character(traits[, d]))
-      }
-    }
-
-    # return
-    return (list(genotype = genotype,
-                 traits = traits,
-                 trait.type = trait.type,
-                 strains = strains))
   }
 
 
-  # Description:
-  # Convert genphen data to stan data
-  getStanFormat <- function(f.data) {
-
-    # Split SNP into pairs of genotypes
-    getX <- function(x, X.setup) {
-      xs <- unique(x)
-
-      # Is X setup with 1s and -1s?
-      # * Yes = leave it as it is
-      # * No = transform
-      if(X.setup == FALSE) {
-        X <- numeric(length = length(x))
-        xs.dir <- sample(x = c(1, -1),
-                         size = 2,
-                         replace = FALSE)
-
-        # map genotypes to 1s and -1s
-        for(i in 1:length(xs)) {
-          X[x == xs[i]] <- xs.dir[i]
-        }
-      }
-      else {
-        X <- x
-      }
+  # X
+  X <- apply(X = genotype, MARGIN = 2,
+             FUN = function(x) {return(ifelse(
+               test = x==x[1], yes = 1, no = -1))})
 
 
+  d <- list(N = length(Y),
+            Ns = ncol(X),
+            Nk = length(unique(strains)),
+            Y = trait,
+            X = X,
+            K = as.numeric(as.factor(strains)),
+            strains = strains,
+            P = ifelse(test = trait.type == "Q",
+                       yes = 1, no = 0))
 
-      xs <- c(xs, NA)
-
-      ref <- unique(x[X == 1])
-      alt <- unique(x[X == -1])
-      if(length(ref) == 0) {
-        ref <- NA
-      }
-      if(length(alt) == 0) {
-        alt <- NA
-      }
-
-      # xmap
-      xmap <- data.frame(ref = ref,
-                         alt = alt,
-                         refN = sum(X == 1),
-                         altN = sum(X == -1))
-
-      # return
-      return(list(X = X, xmap = xmap))
-    }
-
-    # X.data
-    getXData <- function(x) {
-      return (x$X)
-    }
-
-    # X.map
-    getXMap <- function(x) {
-      return (x$xmap)
-    }
-
-
-    # make huge matrix with predictors
-    X <- f.data$genotype
-
-
-    X.setup <- all(X == 1 | X == -1)
-    X <- apply(X = X, MARGIN = 2, FUN = getX, X.setup = X.setup)
-    for(i in 1:length(X)) {
-      X[[i]]$xmap$site <- i
-    }
-    xmap <- do.call(rbind, lapply(X = X, FUN = getXMap))
-    X <- do.call(cbind, lapply(X = X, FUN = getXData))
-
-
-    if(sum(f.data$trait.type == "Q") != 0) {
-      Yq <- as.matrix(f.data$traits[, f.data$trait.type == "Q"])
-    }
-    else {
-      Yq <- matrix(data = 0, ncol = 0, nrow = nrow(X))
-    }
-
-    if(sum(f.data$trait.type == "D") != 0) {
-      Yd <- as.matrix(f.data$traits[, f.data$trait.type == "D"])
-    }
-    else {
-      Yd <- matrix(data = 0, ncol = 0, nrow = nrow(X))
-    }
-
-
-    # extra conversion
-    temp.Yd <- c()
-    if(ncol(Yd) > 0) {
-      for(i in 1:ncol(Yd)) {
-        temp.Yd <- cbind(temp.Yd, as.numeric(Yd[, i]))
-      }
-      Yd <- temp.Yd
-      rm(temp.Yd)
-    }
-
-    # set X to numeric
-    class(X) <- "numeric"
-
-
-    K <- as.numeric(as.factor(f.data$strains))
-    Xk <- X[which(duplicated(K) == FALSE), ]
-
-
-    s <- list(X = X,
-              Y = cbind(Yq, Yd),
-              K = K,
-              Yq = Yq,
-              Yd = Yd,
-              N = nrow(X),
-              Ns = ncol(X),
-              Nk = length(unique(f.data$strains)),
-              Ntq = ncol(Yq),
-              Ntd = ncol(Yd),
-              Xk = Xk,
-              xmap = xmap,
-              Korg = f.data$strains,
-              strains = f.data$strains,
-              genotype = f.data$genotype,
-              trait.type = f.data$trait.type)
-
-    return (s)
-  }
-
-
-
-  # genphen data
-  f.data <- getFormattedGenphen(genotype = genotype,
-                                traits = traits,
-                                trait.type = trait.type,
-                                strains = strains)
-
-
-  # stan data
-  stan.data <- getStanFormat(f.data = f.data)
-
-
-  # return
-  return (stan.data)
+  return (d)
 }
-
 
 
 
@@ -216,73 +63,19 @@ getStanModel <- function(model.name) {
 
 
 
-
-
 # Function:
 # Given model.name, fetch appropriate stan model
-getStanModelDebugReal <- function(model.name,
-                              comparison = TRUE) {
-  if(comparison) {
+getStanModelDebugReal <- function(model.name) {
 
-    # M0
-    if(model.name == "M0") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M0_loglik.stan")
-    }
-    # M0c
-    if(model.name == "M0c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M0c_loglik.stan")
-    }
-
-    # M1
-    if(model.name == "M1") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M1_loglik.stan")
-    }
-    # M1c
-    if(model.name == "M1c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M1c_loglik.stan")
-    }
-
-    # M2
-    if(model.name == "M2") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M2_loglik.stan")
-    }
-    # M2c
-    if(model.name == "M2c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M2c_loglik.stan")
-    }
-
-  }
-  else {
-
-    # M0
-    if(model.name == "M0") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M0.stan")
-    }
-    # M0c
-    if(model.name == "M0c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M0c.stan")
-    }
-
-    # M1
-    if(model.name == "M1") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M1.stan")
-    }
-    # M1c
-    if(model.name == "M1c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M1c.stan")
-    }
-
-    # M2
-    if(model.name == "M2") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M2.stan")
-    }
-    # M2c
-    if(model.name == "M2c") {
-      stan.model <- rstan::stan_model(file = "src/stan_files/M2c.stan")
-    }
-
+  # M0
+  if(model.name == "M0") {
+    stan.model <- rstan::stan_model(file = "src/stan_files/M0.stan")
   }
 
+  # M1
+  if(model.name == "M1") {
+    stan.model <- rstan::stan_model(file = "src/stan_files/M1.stan")
+  }
 
   return (stan.model)
 }
@@ -316,21 +109,13 @@ getStanModelPars <- function(model.name) {
 
   # M0
   if(model.name == "M0") {
-    pars <- c("alpha_trait", "sigma", "beta_snp",
-              "nu", "nu_help")
+    pars <- c("alpha_trait", "sigma", "beta_snp")
   }
-  if(model.name == "M0c") {
-    pars <- c("alpha_trait", "sigma", "beta_snp",
-              "nu", "nu_help", "rho")
-  }
+
   # M1
   if(model.name == "M1") {
-    pars <- c("alpha_trait", "sigma", "beta_snp",
-              "sigma_snp", "nu", "nu_help")
-  }
-  if(model.name == "M1c") {
-    pars <- c("alpha_trait", "sigma", "beta_snp",
-              "sigma_snp", "nu", "nu_help", "rho")
+    pars <- c("alpha_trait", "sigma",
+              "beta_snp", "sigma_snp")
   }
 
   return (pars)
@@ -338,13 +123,10 @@ getStanModelPars <- function(model.name) {
 
 
 
-
-
-
 # Description:
 # Check the input arguments of the main run, stop if violated.
 checkInput <- function(genotype,
-                       traits,
+                       trait,
                        trait.type,
                        strains,
                        model,
@@ -359,7 +141,7 @@ checkInput <- function(genotype,
 
 
   if(is.null(genotype) | missing(genotype) |
-     is.null(traits) | missing(traits) |
+     is.null(trait) | missing(trait) |
      is.null(trait.type) | missing(trait.type) |
      is.null(strains) | missing(strains) |
      is.null(model) | missing(model) |
@@ -374,10 +156,10 @@ checkInput <- function(genotype,
     stop("arguments must be non-NULL/specified")
   }
 
-  checkGenotypeTrait(genotype = genotype, traits = traits,
+  checkGenotypeTrait(genotype = genotype, trait = trait,
                      trait.type = trait.type)
-  checkTraitValidity(traits = traits, trait.type = trait.type)
-  checkStrains(strains = strains, traits = traits)
+  checkTraitValidity(trait = trait, trait.type = trait.type)
+  checkStrains(strains = strains, trait = trait)
   checkModel(model = model)
   checkMcmcSteps(mcmc.steps = mcmc.steps)
   checkMcmcWarmup(mcmc.warmup = mcmc.warmup)
@@ -388,7 +170,6 @@ checkInput <- function(genotype,
   checkMaxTreedepth(max.treedepth = max.treedepth)
   checkWriteSamples(write.samples = write.samples)
 }
-
 
 
 
@@ -475,7 +256,6 @@ checkInputPhyloBias <- function(input.kinship.matrix,
 
 
 
-
 # Function:
 # If an object of type DNAMultipleAlignment
 convertMsaToGenotype <- function(genotype) {
@@ -493,7 +273,8 @@ convertMsaToGenotype <- function(genotype) {
 # p = posterior
 getScores <- function(glm, model, hdi.level, gt.data) {
 
-  d <- summary(glm, probs = c(0.5, (1-hdi.level)/2, 1-(1-hdi.level)/2),
+  d <- summary(glm, probs = c(0.5, (1-hdi.level)/2,
+                              1-(1-hdi.level)/2),
                pars = "beta_snp")$summary
   d <- data.frame(d)
   d$par <- rownames(d)
@@ -521,6 +302,7 @@ getScores <- function(glm, model, hdi.level, gt.data) {
 }
 
 
+
 # Description:
 # Computes max(P-, P+) for beta_snp
 getPmax <- function(glm) {
@@ -535,8 +317,8 @@ getPmax <- function(glm) {
   for(t in 1:Nt) {
     for(s in 1:Ns) {
       row <- data.frame(trait = t, site = s,
-                        pmax = max(sum(e$beta_snp[,t,s] > 0)/Np,
-                                   sum(e$beta_snp[,t,s] < 0)/Np),
+                        pmax = 2*max(sum(e$beta_snp[,t,s] > 0)/Np,
+                                     sum(e$beta_snp[,t,s] < 0)/Np)-1,
                         stringsAsFactors = FALSE)
       pmax <- rbind(pmax, row)
     }

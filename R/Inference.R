@@ -14,18 +14,7 @@ runInference <- function(gt.data,
                          write.samples) {
 
 
-  data.list <- list(N = gt.data$N,
-                    Ns = gt.data$Ns,
-                    Nk = gt.data$Nk,
-                    Ntq = gt.data$Ntq,
-                    Ntd = gt.data$Ntd,
-                    Yq = gt.data$Yq,
-                    Yd = gt.data$Yd,
-                    X = gt.data$X,
-                    M = gt.data$Ms,
-                    K = gt.data$K,
-                    Xk = gt.data$Xk)
-
+  data.list <- gt.data
 
   # get appropriate parameters to monitor
   pars <- getStanModelPars(model.name = stan.model@model_name)
