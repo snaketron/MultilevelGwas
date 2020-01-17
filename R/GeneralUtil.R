@@ -18,13 +18,15 @@ getStanFormat <- function(genotype,
 
   # TODO: check
   if(trait.type == "D") {
+    trait.num <- numeric(length = length(trait))
     if(all(trait %in% c(1, 0)) == FALSE) {
       # mapping 1st element to 1, 2nd to 0
       u <- unique(trait)
-      trait[trait == u[1]] <- 1
-      trait[trait == u[2]] <- 0
+      trait.num[trait == u[1]] <- 1
+      trait.num[trait == u[2]] <- 0
       cat("Mapping dichotomous trait:",
           "(", u[1], "->1,", u[2], "->0) \n")
+      trait <- trait.num
     }
   }
 
@@ -35,7 +37,7 @@ getStanFormat <- function(genotype,
                test = x==x[1], yes = 1, no = -1))})
 
 
-  d <- list(N = length(Y),
+  d <- list(N = length(trait),
             Ns = ncol(X),
             Nk = length(unique(strains)),
             Y = trait,
@@ -325,6 +327,14 @@ getPmax <- function(glm) {
   }
 
   return (pmax)
+}
+
+
+
+
+getPmaxVec <- function(x) {
+  return(2 * max(sum(x >= 0)/length(x),
+                 sum(x < 0)/length(x)) - 1)
 }
 
 
